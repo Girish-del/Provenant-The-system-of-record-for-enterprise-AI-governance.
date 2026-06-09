@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08 (M1 Foundation complete; next: M2)
+**Last updated:** 2026-06-08 (M2 data layer + RLS done; next: 2.3/2.4 auth + API)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -32,11 +32,12 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ **M1 Foundation complete.** `pnpm dev` wiring lands when apps exist (M2).
 
 ### M2 — Auth + multi-tenancy + RBAC
-- ☐ 2.1 Prisma init + DB connection (non-superuser app role)
-- ☐ 2.2 Org / User / Membership / Role models + RLS policies
-- ☐ 2.3 WorkOS auth (SSO/OIDC + email) + httpOnly session
-- ☐ 2.4 Tenant-context middleware (`app.current_org`) + deny-by-default authz guard
-- ☐ 2.5 Always-on tenant-isolation test suite (CI-blocking)
+- ☑ 2.1 Prisma init + DB connection (non-superuser `aegis_app` role) — commit b48beb8
+- ☑ 2.2 Org / User / Membership / Role models + RLS policies (FORCE, append-only audit) — commit b48beb8
+- ☐ 2.3 Auth provider interface + **dev provider** (email); WorkOS adapter deferred (credential wall)
+- ☐ 2.4 NestJS app + tenant-context middleware (`app.current_org`) + deny-by-default authz guard
+- ◐ 2.5 Tenant-isolation suite: test written + wired CI-blocking (Postgres service + db push + rls:apply).
+  **Live-verify pending** one run with Postgres up (Docker daemon was down in-session).
 
 ### M3 — Data layer
 - ☐ 3.1 Core Prisma schema (UseCase, Model, Dataset, RiskAssessment, Framework, Control,
@@ -64,6 +65,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☐ M16 AI cost controls: model routing, prompt caching, per-tenant budgets, circuit breaker
 - ☐ M17 PLG assessment surface (low-friction funnel)
 
+### Backlog — low priority (after main functionality)
+- ☐ B1 **Google OAuth login + register** (user-requested, LOW priority). Note: WorkOS
+  AuthKit provides Google social login natively, so once 2.3's WorkOS adapter is wired
+  this is mostly configuration. Do after core features work.
+- ☐ B2 Membership-based RLS policy on `organizations` (currently app-layer guarded only).
+- ☐ B3 Convert `rls.sql` into a versioned Prisma migration (currently applied via script).
+
 ## Decisions log (append-only)
 | Date | Decision | Why |
 |------|----------|-----|
@@ -72,6 +80,15 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-08 — **2.1+2.2 Data layer + RLS** (commit b48beb8). `@aegis/db`: Prisma schema
+  (Organization, User, Membership[org-scoped], AuditLog[org-scoped, append-only, hash-chain cols]).
+  `prisma/rls.sql`: non-superuser `aegis_app` role, RLS + FORCE on memberships/audit_logs,
+  fail-closed via `current_setting('app.current_org', true)`, REVOKE update/delete on audit_logs.
+  `forOrg(orgId, fn)` tenant-scoped client (interactive tx + SET LOCAL). Isolation test (scoped
+  reads / fail-closed / WITH CHECK). Two-role URLs (DATABASE_URL=aegis_app, DIRECT_URL=aegis).
+  CI now provisions Postgres + db push + rls:apply + runs the isolation suite (CI-blocking).
+  Verified statically: prisma validate, generate, typecheck, build, lint. Gotcha: Docker daemon
+  did not boot in-session, so the live RLS run is deferred to CI / local `docker compose up`.
 - 2026-06-08 — **1.3 CI** (commit 1d8505d). `.github/workflows/ci.yml`: build job (install
   frozen → typecheck → lint → test → build) + security job (gitleaks). Gate sequence verified
   locally; lint/test/build are no-ops until packages define them.
@@ -88,11 +105,19 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M2 — Auth + multi-tenancy + RBAC.** Start with 2.1 (Prisma init + DB connection) then 2.2
-(Org/User/Membership/Role models + RLS policies; add a non-superuser app role with
-`FORCE ROW LEVEL SECURITY`). Bring up the DB with `docker compose up -d postgres` to verify
-migrations + RLS. 2.3 (WorkOS) is the first credential wall — build an auth-provider interface
-with a **dev provider** (email, no external) so local auth works without WorkOS keys; the WorkOS
-adapter drops in when keys arrive. 2.4 tenant-context middleware + deny-by-default authz guard.
-2.5 the always-on tenant-isolation test suite (CI-blocking).
+**2.3 + 2.4 — Auth + NestJS API.** Scaffold `apps/api` (NestJS). Build an auth-provider
+interface with a **dev provider** (email-only, no external account) so local login works now;
+the WorkOS adapter (and Google login via WorkOS, backlog B1) drops in when keys arrive. Add
+the tenant-context middleware that reads the session and wraps requests with `forOrg`, plus a
+deny-by-default RBAC guard with object-level checks. Then close out 2.5 by running the
+isolation suite live.
+
+**Local runbook to verify RLS (when Docker is up):**
+```
+docker compose up -d postgres
+export DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis
+DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db exec prisma db push --skip-generate
+DIRECT_URL=$DIRECT_URL pnpm --filter @aegis/db rls:apply
+DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis pnpm --filter @aegis/db test
+```
 Design sign-off: APPROVED 2026-06-08 — UI work (M4+) is unblocked.
