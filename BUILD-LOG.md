@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08 (2.4 build-prereq done; next: scaffold NestJS apps/api)
+**Last updated:** 2026-06-09 (M2 COMPLETE — auth/tenancy/RBAC live-verified; next: M3 data model)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -35,11 +35,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ 2.1 Prisma init + DB connection (non-superuser `aegis_app` role) — commit b48beb8
 - ☑ 2.2 Org / User / Membership / Role models + RLS policies (FORCE, append-only audit) — commit b48beb8
 - ☑ 2.3 Auth core in @aegis/core: RBAC + session JWT + DevAuthProvider, 10 tests green — commit 466a41c
-- ◐ 2.4 NestJS API (apps/api) + tenant-context middleware (`app.current_org`) + deny-by-default authz guard.
-  - ☑ prereq: tsup JS builds for @aegis/core, @aegis/db, @aegis/config (ESM + dts → dist) — commit 50eca46
-  - ☐ scaffold apps/api (NestJS, ESM, tsc build): /health, dev-login, /me, AuthGuard, tenant-context, RolesGuard
-- ◐ 2.5 Tenant-isolation suite: test written + wired CI-blocking (Postgres service + db push + rls:apply).
-  **Live-verify pending** one run with Postgres up (Docker daemon was down in-session).
+- ☑ 2.4 NestJS API (apps/api): /health, dev-login, /me, AuthGuard, tenant-context (forOrg), RolesGuard
+  — verified LIVE end-to-end vs Postgres+RLS — commits 50eca46 (build prereq), 277c5c4 (api)
+- ☑ 2.5 Tenant-isolation suite: 3/3 LIVE green vs Postgres as `aegis_app` (scoped reads, fail-closed,
+  WITH CHECK); CI-blocking (Postgres service + db push + rls:apply) — commits b48beb8, d76dfb9
+- ☑ **M2 complete.**
 
 ### M3 — Data layer
 - ☐ 3.1 Core Prisma schema (UseCase, Model, Dataset, RiskAssessment, Framework, Control,
@@ -82,6 +82,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-09 — **2.4 NestJS API** (commit 277c5c4) + **2.5 live RLS** (commit d76dfb9). `apps/api`
+  (NestJS, ESM, tsc): `/health`, `POST /auth/dev/login` (DevAuthProvider → upsert user + per-user dev
+  org + ADMIN membership via `forOrg` → `createSession` → httpOnly cookie), `/auth/me`, AuthGuard
+  (verifySession), RolesGuard + `@RequireAction` (core RBAC), `/memberships` (AuthGuard+RolesGuard+forOrg).
+  Verified LIVE vs Postgres+RLS: login→me→memberships correct; no-cookie→401. 2.5 isolation suite 3/3
+  green as `aegis_app`. Gotcha (d76dfb9): pooled connection reverts `SET LOCAL` to `''` (not NULL);
+  wrapped policy in `nullif(...,'')` so empty→NULL→fail-closed instead of 22P02.
 - 2026-06-08 — **2.4 prereq: internal package builds** (commit 50eca46). Added tsup builds to
   @aegis/core, @aegis/db, @aegis/config (ESM + .d.ts → dist, exports point to dist). Unblocks any
   app importing them at runtime (NestJS needs compiled JS + emitDecoratorMetadata). Verified:
@@ -119,15 +126,25 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**2.4 — NestJS API (`apps/api`).** Prereq (tsup builds) is DONE (commit 50eca46). Remaining:
-1. Scaffold `apps/api` (NestJS, **ESM**, compiled with `tsc` so decorator metadata is emitted;
-   `import 'reflect-metadata'` in main.ts). Endpoints: `/health` (no DB), `POST /auth/dev/login`
-   (DevAuthProvider → find/create user + membership → `createSession` → httpOnly cookie),
-   `GET /me` (AuthGuard verifies session), one org-scoped endpoint via `forOrg`.
-2. Guards: `AuthGuard` (verifySession), tenant-context (session org → `forOrg`),
-   `RolesGuard` + `@Roles()` using core RBAC.
-Verify: typecheck + build + boot `/health` smoke (set a dummy DATABASE_URL so PrismaClient
-instantiates); DB-backed endpoints (login/me) live-verify when Postgres is up.
+**M3 — Core data model + content-as-data.** Build the business schema on top of the M2 tenancy spine.
+1. **3.1 Schema:** add org-scoped entities to `packages/db` — `UseCase` (lifecycle state + risk tier),
+   `AiModel`, `Dataset`, `RiskAssessment`, `ControlMapping`, `Evidence`, `Policy`, `Workflow`/`Task`/
+   `Approval`, `Report`. Plus global content: `Framework`, `Control`, `ControlCrosswalk`,
+   `Questionnaire`/`Question`. Every org-scoped table gets `org_id` + an RLS policy (extend `rls.sql`)
+   + FORCE. `db push` + `rls:apply`; extend the isolation suite to a couple of the new tables.
+2. **3.2 Seed:** a demo tenant + a few use cases; idempotent seed script.
+3. **3.3 Content-as-data:** EU AI Act + NIST AI RMF starter content (frameworks, controls, a crosswalk,
+   the EU AI Act risk questionnaire) as versioned rows in `@aegis/content`, loaded by the seed.
+Verify each: `db push` + `rls:apply` + isolation tests + a seed run, all live vs Postgres (up now).
+
+### How to run the stack locally (Postgres is up)
+```
+docker compose up -d --wait postgres
+DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db exec prisma db push --skip-generate --accept-data-loss
+DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db rls:apply
+DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis pnpm --filter @aegis/db test
+# API: DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis (+ DIRECT_URL, REDIS_URL, SESSION_SECRET) node apps/api/dist/main.js
+```
 
 **Local runbook to verify RLS (when Docker is up):**
 ```
