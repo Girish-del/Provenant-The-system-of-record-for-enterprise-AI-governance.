@@ -6,9 +6,13 @@
   "description": "Shared TS config + validated environment schema for the Aegis monorepo",
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
-    "./env": "./src/env.ts"
+    "./env": {
+      "types": "./dist/env.d.ts",
+      "import": "./dist/env.js"
+    }
   },
   "scripts": {
+    "build": "tsup src/env.ts --format esm --dts --clean",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   }
 }
