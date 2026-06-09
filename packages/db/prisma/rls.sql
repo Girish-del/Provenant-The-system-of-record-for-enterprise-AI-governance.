@@ -52,6 +52,10 @@ $$;
 -- 3. Audit log is append-only: no UPDATE/DELETE for the app role.
 REVOKE UPDATE, DELETE ON audit_logs FROM aegis_app;
 
+-- 4. Content library is read-only to the app role (managed by the platform, seeded by
+--    the owner role). The app may SELECT shared reference content but never modify it.
+REVOKE INSERT, UPDATE, DELETE ON frameworks, controls, control_crosswalks, questionnaires, questions FROM aegis_app;
+
 -- NOTE: `organizations` and `users` are NOT org_id-scoped (org is the tenant root;
 -- user is a global identity), and the content library (frameworks, controls,
 -- control_crosswalks, questionnaires, questions) is global read-only reference

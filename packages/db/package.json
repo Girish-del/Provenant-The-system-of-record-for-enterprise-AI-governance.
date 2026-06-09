@@ -19,10 +19,12 @@
     "db:push": "prisma db push --skip-generate",
     "rls:apply": "node scripts/apply-rls.mjs",
     "db:setup": "prisma db push && node scripts/apply-rls.mjs",
+    "db:seed": "tsx src/seed.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aegis/content": "workspace:*",
     "@prisma/client": "^6.1.0"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "pg": "^8.13.1",
     "prisma": "^6.1.0",
     "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
