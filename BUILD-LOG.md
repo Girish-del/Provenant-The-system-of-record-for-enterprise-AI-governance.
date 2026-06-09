@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08 (M2 data layer + RLS done; next: 2.3/2.4 auth + API)
+**Last updated:** 2026-06-08 (2.3 auth core done + tested; next: 2.4 NestJS API)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -34,8 +34,10 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 ### M2 — Auth + multi-tenancy + RBAC
 - ☑ 2.1 Prisma init + DB connection (non-superuser `aegis_app` role) — commit b48beb8
 - ☑ 2.2 Org / User / Membership / Role models + RLS policies (FORCE, append-only audit) — commit b48beb8
-- ☐ 2.3 Auth provider interface + **dev provider** (email); WorkOS adapter deferred (credential wall)
-- ☐ 2.4 NestJS app + tenant-context middleware (`app.current_org`) + deny-by-default authz guard
+- ☑ 2.3 Auth core in @aegis/core: RBAC + session JWT + DevAuthProvider, 10 tests green — commit 466a41c
+- ☐ 2.4 NestJS API (apps/api) + tenant-context middleware (`app.current_org`) + deny-by-default authz guard.
+  Prereq sub-step: give internal packages a tsup JS build so a Nest (decorator-metadata) app can import
+  `@aegis/core`/`@aegis/db` at runtime.
 - ◐ 2.5 Tenant-isolation suite: test written + wired CI-blocking (Postgres service + db push + rls:apply).
   **Live-verify pending** one run with Postgres up (Docker daemon was down in-session).
 
@@ -80,6 +82,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-08 — **2.3 Auth core** (commit 466a41c). `@aegis/core`: deny-by-default RBAC
+  (Role×Action matrix, `can`/`assertCan`/`ForbiddenError`), stateless HS256 session JWT via
+  jose (`createSession`/`verifySession`, absolute expiry, audience/issuer pinned),
+  `AuthProvider` interface + `DevAuthProvider` (email, no external account). 10 vitest tests
+  green (rbac matrix; session round-trip/wrong-secret/tamper/expiry/secret-length). Decision:
+  security-critical auth logic lives as pure tested functions in core; the NestJS HTTP layer
+  (2.4) consumes it. WorkOS + Google (backlog B1) implement `AuthProvider` later.
 - 2026-06-08 — **2.1+2.2 Data layer + RLS** (commit b48beb8). `@aegis/db`: Prisma schema
   (Organization, User, Membership[org-scoped], AuditLog[org-scoped, append-only, hash-chain cols]).
   `prisma/rls.sql`: non-superuser `aegis_app` role, RLS + FORCE on memberships/audit_logs,
@@ -105,12 +114,16 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**2.3 + 2.4 — Auth + NestJS API.** Scaffold `apps/api` (NestJS). Build an auth-provider
-interface with a **dev provider** (email-only, no external account) so local login works now;
-the WorkOS adapter (and Google login via WorkOS, backlog B1) drops in when keys arrive. Add
-the tenant-context middleware that reads the session and wraps requests with `forOrg`, plus a
-deny-by-default RBAC guard with object-level checks. Then close out 2.5 by running the
-isolation suite live.
+**2.4 — NestJS API (`apps/api`).**
+1. Prereq: add a `tsup` JS build to `@aegis/core`, `@aegis/db`, `@aegis/config` (exports → dist,
+   with a `development` source condition) so a NestJS app (tsc/swc, needs `emitDecoratorMetadata`)
+   can import them at runtime. This unblocks every app, not just the API.
+2. Scaffold `apps/api` (NestJS, CJS + tsc/swc). Endpoints: `/health` (no DB), `POST /auth/dev/login`
+   (DevAuthProvider → find/create user + membership → `createSession` → httpOnly cookie),
+   `GET /me` (AuthGuard verifies session), one org-scoped endpoint via `forOrg`.
+3. Guards: `AuthGuard` (verifySession), tenant-context (reads session org → `forOrg`),
+   `RolesGuard` + `@Roles()` using core RBAC.
+Verify: typecheck + build + boot `/health` smoke; DB-backed endpoints live-verify when Postgres up.
 
 **Local runbook to verify RLS (when Docker is up):**
 ```
