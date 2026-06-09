@@ -10,6 +10,10 @@ import { FrameworksService } from './frameworks/frameworks.service.js';
 import { AssessmentsController } from './assessments/assessments.controller.js';
 import { QuestionnairesController } from './assessments/questionnaires.controller.js';
 import { AssessmentsService } from './assessments/assessments.service.js';
+import { ControlMappingsController } from './controls/control-mappings.controller.js';
+import { ControlMappingsService } from './controls/control-mappings.service.js';
+import { EvidenceController } from './evidence/evidence.controller.js';
+import { EvidenceService } from './evidence/evidence.service.js';
 
 @Module({
   controllers: [
@@ -20,7 +24,16 @@ import { AssessmentsService } from './assessments/assessments.service.js';
     FrameworksController,
     AssessmentsController,
     QuestionnairesController,
+    ControlMappingsController,
+    EvidenceController,
   ],
-  providers: [AuthService, UseCasesService, FrameworksService, AssessmentsService],
+  providers: [
+    AuthService,
+    UseCasesService,
+    FrameworksService,
+    AssessmentsService,
+    ControlMappingsService,
+    EvidenceService,
+  ],
 })
 export class AppModule {}
