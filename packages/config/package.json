@@ -2,8 +2,20 @@
   "name": "@aegis/config",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared TS/lint/format config for the Aegis monorepo",
-  "files": [
-    "tsconfig.base.json"
-  ]
+  "type": "module",
+  "description": "Shared TS config + validated environment schema for the Aegis monorepo",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./env": "./src/env.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
 }
