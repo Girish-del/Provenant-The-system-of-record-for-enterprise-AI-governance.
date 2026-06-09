@@ -4,8 +4,9 @@
 -- non-superuser role `aegis_app` so these policies are actually enforced.
 --
 -- Tenant context is set per request/transaction via:  SET LOCAL app.current_org = '<uuid>'
--- `current_setting('app.current_org', true)` returns NULL when unset, so an
--- unscoped query matches no rows (fail closed) instead of erroring.
+-- `nullif(current_setting('app.current_org', true), '')` is NULL when the setting is
+-- unset OR when a pooled connection reverted a prior SET LOCAL to an empty string, so an
+-- unscoped query matches no rows (fail closed) instead of erroring on ''::uuid.
 
 -- 1. Non-superuser runtime role (no BYPASSRLS).
 DO $$
@@ -29,15 +30,15 @@ ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON memberships;
 CREATE POLICY tenant_isolation ON memberships
-  USING (org_id = current_setting('app.current_org', true)::uuid)
-  WITH CHECK (org_id = current_setting('app.current_org', true)::uuid);
+  USING (org_id = nullif(current_setting('app.current_org', true), '')::uuid)
+  WITH CHECK (org_id = nullif(current_setting('app.current_org', true), '')::uuid);
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON audit_logs;
 CREATE POLICY tenant_isolation ON audit_logs
-  USING (org_id = current_setting('app.current_org', true)::uuid)
-  WITH CHECK (org_id = current_setting('app.current_org', true)::uuid);
+  USING (org_id = nullif(current_setting('app.current_org', true), '')::uuid)
+  WITH CHECK (org_id = nullif(current_setting('app.current_org', true), '')::uuid);
 
 -- 3. Audit log is append-only: no UPDATE/DELETE for the app role.
 REVOKE UPDATE, DELETE ON audit_logs FROM aegis_app;
