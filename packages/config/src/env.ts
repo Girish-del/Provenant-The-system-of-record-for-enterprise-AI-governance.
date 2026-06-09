@@ -10,7 +10,8 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
   // Core data stores
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.string().url(), // app runtime role (aegis_app), RLS enforced
+  DIRECT_URL: z.string().url().optional(), // owner/superuser role for migrations + RLS setup
   REDIS_URL: z.string().url(),
 
   // App URLs

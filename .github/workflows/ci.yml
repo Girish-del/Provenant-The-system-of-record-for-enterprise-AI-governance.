@@ -14,6 +14,26 @@ jobs:
   build:
     name: Typecheck / Lint / Test / Build
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aegis
+          POSTGRES_PASSWORD: aegis
+          POSTGRES_DB: aegis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aegis -d aegis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Migrations + RLS setup run as the owner role.
+      DIRECT_URL: postgresql://aegis:aegis@localhost:5432/aegis
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,13 +49,26 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm --filter @aegis/db exec prisma generate
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
 
-      - name: Test
+      - name: Set up database (schema + RLS)
+        env:
+          DATABASE_URL: postgresql://aegis:aegis@localhost:5432/aegis
+        run: |
+          pnpm --filter @aegis/db exec prisma db push --skip-generate --accept-data-loss
+          pnpm --filter @aegis/db rls:apply
+
+      - name: Test (incl. tenant-isolation suite)
+        env:
+          # App connects as the non-superuser role so RLS is actually exercised.
+          DATABASE_URL: postgresql://aegis_app:aegis_app@localhost:5432/aegis
         run: pnpm test
 
       - name: Build

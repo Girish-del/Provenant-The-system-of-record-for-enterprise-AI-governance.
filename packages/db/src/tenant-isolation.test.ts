@@ -1,0 +1,64 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { prisma, forOrg } from './client';
+
+// The most important test in the product: prove that Row-Level Security makes
+// one tenant unable to read or write another tenant's data. Requires a running
+// Postgres with the schema + rls.sql applied, and the app connecting as aegis_app.
+//
+//   docker compose up -d postgres
+//   pnpm --filter @aegis/db db:push && pnpm --filter @aegis/db rls:apply
+//   pnpm --filter @aegis/db test
+
+const orgA = randomUUID();
+const orgB = randomUUID();
+const userId = randomUUID();
+const strangerId = randomUUID();
+
+beforeAll(async () => {
+  // organizations + users are not org-scoped; create them directly.
+  await prisma.organization.createMany({
+    data: [
+      { id: orgA, name: 'Org A', slug: `a-${orgA.slice(0, 8)}` },
+      { id: orgB, name: 'Org B', slug: `b-${orgB.slice(0, 8)}` },
+    ],
+  });
+  await prisma.user.createMany({
+    data: [
+      { id: userId, email: `u-${userId.slice(0, 8)}@test.dev` },
+      { id: strangerId, email: `s-${strangerId.slice(0, 8)}@test.dev` },
+    ],
+  });
+  // memberships are RLS-scoped: each insert must run in its own tenant context.
+  await forOrg(orgA, (tx) => tx.membership.create({ data: { orgId: orgA, userId, role: 'ADMIN' } }));
+  await forOrg(orgB, (tx) => tx.membership.create({ data: { orgId: orgB, userId, role: 'VIEWER' } }));
+});
+
+afterAll(async () => {
+  // Deleting the orgs cascades to memberships (FK cascade bypasses RLS).
+  await prisma.organization.deleteMany({ where: { id: { in: [orgA, orgB] } } });
+  await prisma.user.deleteMany({ where: { id: { in: [userId, strangerId] } } });
+  await prisma.$disconnect();
+});
+
+describe('tenant isolation (RLS)', () => {
+  it('scopes reads to the active org only', async () => {
+    const inA = await forOrg(orgA, (tx) => tx.membership.findMany());
+    expect(inA.length).toBeGreaterThan(0);
+    expect(inA.every((m) => m.orgId === orgA)).toBe(true);
+    expect(inA.some((m) => m.orgId === orgB)).toBe(false);
+  });
+
+  it('fails closed when no tenant context is set', async () => {
+    const unscoped = await prisma.membership.findMany();
+    expect(unscoped).toHaveLength(0);
+  });
+
+  it('cannot write a row into another tenant (WITH CHECK)', async () => {
+    await expect(
+      forOrg(orgA, (tx) =>
+        tx.membership.create({ data: { orgId: orgB, userId: strangerId, role: 'VIEWER' } }),
+      ),
+    ).rejects.toThrow();
+  });
+});

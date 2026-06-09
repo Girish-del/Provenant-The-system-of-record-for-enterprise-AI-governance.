@@ -1,0 +1,80 @@
+// Aegis core data model. Tenant-scoped tables carry `org_id` and are protected by
+// Row-Level Security (see prisma/rls.sql). The app connects as a non-superuser role
+// (aegis_app) so RLS is enforced; migrations run as the owner via DIRECT_URL.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum MembershipRole {
+  ADMIN
+  CONTRIBUTOR
+  REVIEWER
+  VIEWER
+}
+
+/// A tenant. The root of the data model; everything else hangs off an org.
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String       @unique
+  region      String       @default("eu-central-1")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+/// A global identity. A user can belong to multiple orgs via Membership.
+model User {
+  id          String       @id @default(uuid()) @db.Uuid
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+
+  @@map("users")
+}
+
+/// Joins a user to an org with a role. Tenant-scoped (RLS on org_id).
+model Membership {
+  id        String         @id @default(uuid()) @db.Uuid
+  orgId     String         @map("org_id") @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  role      MembershipRole @default(VIEWER)
+  createdAt DateTime       @default(now()) @map("created_at")
+  org       Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+/// Append-only, hash-chained audit log. Tenant-scoped (RLS on org_id).
+model AuditLog {
+  id         String       @id @default(uuid()) @db.Uuid
+  orgId      String       @map("org_id") @db.Uuid
+  actorId    String?      @map("actor_id") @db.Uuid
+  actorIp    String?      @map("actor_ip")
+  action     String
+  targetType String       @map("target_type")
+  targetId   String?      @map("target_id")
+  before     Json?
+  after      Json?
+  occurredAt DateTime     @default(now()) @map("occurred_at")
+  prevHash   String?      @map("prev_hash")
+  entryHash  String?      @map("entry_hash")
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, occurredAt])
+  @@map("audit_logs")
+}
