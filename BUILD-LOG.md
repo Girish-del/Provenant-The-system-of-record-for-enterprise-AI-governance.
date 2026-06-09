@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08 (2.3 auth core done + tested; next: 2.4 NestJS API)
+**Last updated:** 2026-06-08 (2.4 build-prereq done; next: scaffold NestJS apps/api)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -35,9 +35,9 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ 2.1 Prisma init + DB connection (non-superuser `aegis_app` role) — commit b48beb8
 - ☑ 2.2 Org / User / Membership / Role models + RLS policies (FORCE, append-only audit) — commit b48beb8
 - ☑ 2.3 Auth core in @aegis/core: RBAC + session JWT + DevAuthProvider, 10 tests green — commit 466a41c
-- ☐ 2.4 NestJS API (apps/api) + tenant-context middleware (`app.current_org`) + deny-by-default authz guard.
-  Prereq sub-step: give internal packages a tsup JS build so a Nest (decorator-metadata) app can import
-  `@aegis/core`/`@aegis/db` at runtime.
+- ◐ 2.4 NestJS API (apps/api) + tenant-context middleware (`app.current_org`) + deny-by-default authz guard.
+  - ☑ prereq: tsup JS builds for @aegis/core, @aegis/db, @aegis/config (ESM + dts → dist) — commit 50eca46
+  - ☐ scaffold apps/api (NestJS, ESM, tsc build): /health, dev-login, /me, AuthGuard, tenant-context, RolesGuard
 - ◐ 2.5 Tenant-isolation suite: test written + wired CI-blocking (Postgres service + db push + rls:apply).
   **Live-verify pending** one run with Postgres up (Docker daemon was down in-session).
 
@@ -82,6 +82,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-08 — **2.4 prereq: internal package builds** (commit 50eca46). Added tsup builds to
+  @aegis/core, @aegis/db, @aegis/config (ESM + .d.ts → dist, exports point to dist). Unblocks any
+  app importing them at runtime (NestJS needs compiled JS + emitDecoratorMetadata). Verified:
+  turbo build 3 ok, core 10 tests still green, typecheck 4 ok. dist is gitignored. Decision: keep
+  libs ESM + jose (so the NestJS app will be ESM, compiled with tsc which emits decorator metadata).
 - 2026-06-08 — **2.3 Auth core** (commit 466a41c). `@aegis/core`: deny-by-default RBAC
   (Role×Action matrix, `can`/`assertCan`/`ForbiddenError`), stateless HS256 session JWT via
   jose (`createSession`/`verifySession`, absolute expiry, audience/issuer pinned),
@@ -114,16 +119,15 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**2.4 — NestJS API (`apps/api`).**
-1. Prereq: add a `tsup` JS build to `@aegis/core`, `@aegis/db`, `@aegis/config` (exports → dist,
-   with a `development` source condition) so a NestJS app (tsc/swc, needs `emitDecoratorMetadata`)
-   can import them at runtime. This unblocks every app, not just the API.
-2. Scaffold `apps/api` (NestJS, CJS + tsc/swc). Endpoints: `/health` (no DB), `POST /auth/dev/login`
+**2.4 — NestJS API (`apps/api`).** Prereq (tsup builds) is DONE (commit 50eca46). Remaining:
+1. Scaffold `apps/api` (NestJS, **ESM**, compiled with `tsc` so decorator metadata is emitted;
+   `import 'reflect-metadata'` in main.ts). Endpoints: `/health` (no DB), `POST /auth/dev/login`
    (DevAuthProvider → find/create user + membership → `createSession` → httpOnly cookie),
    `GET /me` (AuthGuard verifies session), one org-scoped endpoint via `forOrg`.
-3. Guards: `AuthGuard` (verifySession), tenant-context (reads session org → `forOrg`),
+2. Guards: `AuthGuard` (verifySession), tenant-context (session org → `forOrg`),
    `RolesGuard` + `@Roles()` using core RBAC.
-Verify: typecheck + build + boot `/health` smoke; DB-backed endpoints live-verify when Postgres up.
+Verify: typecheck + build + boot `/health` smoke (set a dummy DATABASE_URL so PrismaClient
+instantiates); DB-backed endpoints (login/me) live-verify when Postgres is up.
 
 **Local runbook to verify RLS (when Docker is up):**
 ```
