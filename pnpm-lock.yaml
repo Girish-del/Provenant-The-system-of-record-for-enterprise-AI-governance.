@@ -23,6 +23,9 @@ importers:
       '@aegis/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@aegis/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@aegis/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -47,6 +50,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.8
@@ -78,6 +84,25 @@ importers:
         version: 5.9.3
 
   packages/content:
+    devDependencies:
+      '@aegis/config':
+        specifier: workspace:*
+        version: link:../config
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/contracts:
+    dependencies:
+      '@aegis/core':
+        specifier: workspace:*
+        version: link:../core
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@aegis/config':
         specifier: workspace:*
