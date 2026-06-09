@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08 (component 1.1 done)
+**Last updated:** 2026-06-08 (M1 Foundation complete; next: M2)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -26,9 +26,10 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ### M1 — Foundation
 - ☑ 1.1 Monorepo scaffold (Turborepo + pnpm workspace, root config, shared `packages/config`) — commit 19c7d92
-- ☐ 1.2 Local dev: Docker Compose (Postgres, Redis, LocalStack) + Zod env schema + `pnpm dev`
-- ☐ 1.3 CI: GitHub Actions (typecheck, lint, test, build on PR)
-- ⊘ 1.4 Terraform skeleton (defer until first cloud deploy)
+- ☑ 1.2 Local dev: Docker Compose (Postgres, Redis, LocalStack) + Zod env schema — commit 1599bdb
+- ☑ 1.3 CI: GitHub Actions (typecheck, lint, test, build, secret scan) — commit 1d8505d
+- ⊘ 1.4 Terraform skeleton (deferred until first cloud deploy)
+- ☑ **M1 Foundation complete.** `pnpm dev` wiring lands when apps exist (M2).
 
 ### M2 — Auth + multi-tenancy + RBAC
 - ☐ 2.1 Prisma init + DB connection (non-superuser app role)
@@ -71,6 +72,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-08 — **1.3 CI** (commit 1d8505d). `.github/workflows/ci.yml`: build job (install
+  frozen → typecheck → lint → test → build) + security job (gitleaks). Gate sequence verified
+  locally; lint/test/build are no-ops until packages define them.
+- 2026-06-08 — **1.2 Local dev env** (commit 1599bdb). `docker-compose.yml` (Postgres 16, Redis 7,
+  LocalStack S3, healthchecks). `.env.example`. `@aegis/config` → Zod env schema (`parseEnv`,
+  fail-fast) + `@types/node`. Docker 27 + Compose v2 present. Gotcha: needed `@types/node` for
+  `process`/`NodeJS` types in the schema.
 - 2026-06-08 — **1.1 Monorepo scaffold** (commit 19c7d92). Turborepo 2.9 + pnpm 9 workspace.
   Root: package.json, pnpm-workspace.yaml, turbo.json, tsconfig.json, .prettierrc.json, .node-version.
   `@aegis/config` (shared tsconfig.base). Workspace dirs apps/{web,api}, services/ai,
@@ -80,7 +88,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**1.2 — Local dev environment.** Add `docker-compose.yml` (Postgres 16, Redis 7, LocalStack
-for S3), a Zod-validated env schema in `@aegis/config` (fail-fast on missing secrets),
-`.env.example`, and wire `pnpm dev` once apps exist. Then 1.3 (GitHub Actions CI).
-Note: UI components (M4+ frontend) need design sign-off on DESIGN.md first; M1–M3 do not.
+**M2 — Auth + multi-tenancy + RBAC.** Start with 2.1 (Prisma init + DB connection) then 2.2
+(Org/User/Membership/Role models + RLS policies; add a non-superuser app role with
+`FORCE ROW LEVEL SECURITY`). Bring up the DB with `docker compose up -d postgres` to verify
+migrations + RLS. 2.3 (WorkOS) is the first credential wall — build an auth-provider interface
+with a **dev provider** (email, no external) so local auth works without WorkOS keys; the WorkOS
+adapter drops in when keys arrive. 2.4 tenant-context middleware + deny-by-default authz guard.
+2.5 the always-on tenant-isolation test suite (CI-blocking).
+Design sign-off: APPROVED 2026-06-08 — UI work (M4+) is unblocked.
