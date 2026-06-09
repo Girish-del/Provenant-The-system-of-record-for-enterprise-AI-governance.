@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-09 (M2 COMPLETE — auth/tenancy/RBAC live-verified; next: M3 data model)
+**Last updated:** 2026-06-09 (M3 COMPLETE — data model + content + seed live-verified; next: M4)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -42,10 +42,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ **M2 complete.**
 
 ### M3 — Data layer
-- ☐ 3.1 Core Prisma schema (UseCase, Model, Dataset, RiskAssessment, Framework, Control,
-  ControlCrosswalk, ControlMapping, Evidence, Policy, Workflow/Task, Approval, Report, AuditLog)
-- ☐ 3.2 Migrations (reversible) + seed (demo tenant + EU AI Act/NIST starter content)
-- ☐ 3.3 Content-as-data layer (frameworks/controls/crosswalks/questionnaires as versioned rows)
+- ☑ 3.1 Core Prisma schema (18 models) + RLS on all 13 org-scoped tables (loop) — commit 066c7f5
+- ☑ 3.2 Seed (idempotent: demo tenant `demo-acme` + 3 use cases; tsx) — commit 86d4b88
+  (NOTE: dev uses `prisma db push`; reversible migrations to be generated before first deploy — backlog B3)
+- ☑ 3.3 Content-as-data (`@aegis/content`: EU AI Act + NIST frameworks/controls/crosswalks +
+  EU AI Act questionnaire; read-only to app role) — commit 86d4b88
+- ☑ **M3 complete.** Live-verified: counts 2 fw / 12 controls / 4 crosswalks / 4 questions / 3 use cases;
+  content read-only enforced; isolation suite 4/4.
 
 ### M4–M9 — Core features (fan-out candidates)
 - ☐ M4 AI Use-Case Registry (CRUD, lifecycle, CSV import)
@@ -82,6 +85,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-09 — **M3 complete: data model + content + seed** (commits 066c7f5, 86d4b88). 18 Prisma
+  models; RLS applied via a loop to all 13 org-scoped tables (verified 13 `rowsecurity=true`).
+  `@aegis/content`: EU AI Act (8 controls) + NIST AI RMF (4) + 4 crosswalks + EU AI Act risk
+  questionnaire (4 questions w/ tier-implication hints). Idempotent seed (tsx) loads content + demo
+  tenant `demo-acme` + 3 use cases. Content library read-only to `aegis_app` (REVOKE; verified write
+  denied / read allowed). Gotcha: `prisma generate` hit Windows EPERM (engine DLL locked by the
+  running dev API server) — killed the PID, generate fine; no impact on CI (fresh Linux).
 - 2026-06-09 — **2.4 NestJS API** (commit 277c5c4) + **2.5 live RLS** (commit d76dfb9). `apps/api`
   (NestJS, ESM, tsc): `/health`, `POST /auth/dev/login` (DevAuthProvider → upsert user + per-user dev
   org + ADMIN membership via `forOrg` → `createSession` → httpOnly cookie), `/auth/me`, AuthGuard
@@ -126,25 +136,28 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M3 — Core data model + content-as-data.** Build the business schema on top of the M2 tenancy spine.
-1. **3.1 Schema:** add org-scoped entities to `packages/db` — `UseCase` (lifecycle state + risk tier),
-   `AiModel`, `Dataset`, `RiskAssessment`, `ControlMapping`, `Evidence`, `Policy`, `Workflow`/`Task`/
-   `Approval`, `Report`. Plus global content: `Framework`, `Control`, `ControlCrosswalk`,
-   `Questionnaire`/`Question`. Every org-scoped table gets `org_id` + an RLS policy (extend `rls.sql`)
-   + FORCE. `db push` + `rls:apply`; extend the isolation suite to a couple of the new tables.
-2. **3.2 Seed:** a demo tenant + a few use cases; idempotent seed script.
-3. **3.3 Content-as-data:** EU AI Act + NIST AI RMF starter content (frameworks, controls, a crosswalk,
-   the EU AI Act risk questionnaire) as versioned rows in `@aegis/content`, loaded by the seed.
-Verify each: `db push` + `rls:apply` + isolation tests + a seed run, all live vs Postgres (up now).
+**M4 — AI Use-Case Registry** (first real feature surface). Build:
+1. `@aegis/contracts` — ts-rest contract + Zod schemas for use cases (list/create/get/update/
+   transition/CSV import). Shared web↔api types.
+2. `apps/api` `UseCasesController` — CRUD + lifecycle transitions + CSV import, all `forOrg`-scoped,
+   RBAC-gated (`@RequireAction usecase:create|edit|view`), audit-logged (append-only AuditLog).
+3. Lifecycle state machine in `@aegis/core` (PROPOSED→IN_REVIEW→APPROVED→IN_PRODUCTION→RETIRED,
+   with allowed transitions) + unit tests.
+Verify: core unit tests + live API CRUD vs Postgres (seeded `demo-acme`) + isolation holds.
 
 ### How to run the stack locally (Postgres is up)
 ```
 docker compose up -d --wait postgres
+# schema + RLS (owner role)
 DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db exec prisma db push --skip-generate --accept-data-loss
 DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db rls:apply
+# seed content + demo tenant (owner role)
+DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db db:seed
+# isolation suite (app role)
 DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis pnpm --filter @aegis/db test
-# API: DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis (+ DIRECT_URL, REDIS_URL, SESSION_SECRET) node apps/api/dist/main.js
+# API (app role): DATABASE_URL=...aegis_app... (+ DIRECT_URL, REDIS_URL, SESSION_SECRET) node apps/api/dist/main.js
 ```
+Reminder: kill any lingering `node apps/api/dist/main.js` before `prisma generate` on Windows (DLL lock).
 
 **Local runbook to verify RLS (when Docker is up):**
 ```
