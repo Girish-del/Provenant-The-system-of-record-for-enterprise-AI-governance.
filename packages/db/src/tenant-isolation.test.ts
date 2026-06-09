@@ -61,4 +61,14 @@ describe('tenant isolation (RLS)', () => {
       ),
     ).rejects.toThrow();
   });
+
+  it('isolates business tables too (use_cases via the loop-applied policy)', async () => {
+    const created = await forOrg(orgA, (tx) =>
+      tx.useCase.create({ data: { orgId: orgA, name: 'Resume Screener' } }),
+    );
+    const fromA = await forOrg(orgA, (tx) => tx.useCase.findMany());
+    expect(fromA.some((u) => u.id === created.id)).toBe(true);
+    const fromB = await forOrg(orgB, (tx) => tx.useCase.findMany());
+    expect(fromB.some((u) => u.id === created.id)).toBe(false);
+  });
 });

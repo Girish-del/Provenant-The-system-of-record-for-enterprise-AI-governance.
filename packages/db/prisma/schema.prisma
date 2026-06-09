@@ -11,6 +11,8 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ============================ Tenancy ============================
+
 enum MembershipRole {
   ADMIN
   CONTRIBUTOR
@@ -20,14 +22,26 @@ enum MembershipRole {
 
 /// A tenant. The root of the data model; everything else hangs off an org.
 model Organization {
-  id          String       @id @default(uuid()) @db.Uuid
-  name        String
-  slug        String       @unique
-  region      String       @default("eu-central-1")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  memberships Membership[]
-  auditLogs   AuditLog[]
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  region    String   @default("eu-central-1")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memberships     Membership[]
+  auditLogs       AuditLog[]
+  useCases        UseCase[]
+  aiModels        AiModel[]
+  datasets        Dataset[]
+  riskAssessments RiskAssessment[]
+  controlMappings ControlMapping[]
+  evidence        Evidence[]
+  policies        Policy[]
+  workflows       Workflow[]
+  tasks           Task[]
+  approvals       Approval[]
+  reports         Report[]
 
   @@map("organizations")
 }
@@ -77,4 +91,360 @@ model AuditLog {
 
   @@index([orgId, occurredAt])
   @@map("audit_logs")
+}
+
+// ============================ AI registry ============================
+
+enum LifecycleState {
+  PROPOSED
+  IN_REVIEW
+  APPROVED
+  IN_PRODUCTION
+  RETIRED
+}
+
+enum RiskTier {
+  UNASSIGNED
+  PROHIBITED
+  HIGH
+  LIMITED
+  MINIMAL
+}
+
+/// An AI use case: the unit of governance. Tenant-scoped.
+model UseCase {
+  id          String         @id @default(uuid()) @db.Uuid
+  orgId       String         @map("org_id") @db.Uuid
+  name        String
+  description String?
+  purpose     String?
+  ownerId     String?        @map("owner_id") @db.Uuid
+  lifecycle   LifecycleState @default(PROPOSED)
+  riskTier    RiskTier       @default(UNASSIGNED) @map("risk_tier")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  org             Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  models          AiModel[]
+  datasets        Dataset[]
+  assessments     RiskAssessment[]
+  controlMappings ControlMapping[]
+  approvals       Approval[]
+  reports         Report[]
+  workflows       Workflow[]
+
+  @@index([orgId, lifecycle])
+  @@index([orgId, riskTier])
+  @@map("use_cases")
+}
+
+model AiModel {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  useCaseId String?  @map("use_case_id") @db.Uuid
+  name      String
+  provider  String?
+  modelType String?  @map("model_type")
+  version   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase UseCase?     @relation(fields: [useCaseId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@map("ai_models")
+}
+
+model Dataset {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  useCaseId   String?  @map("use_case_id") @db.Uuid
+  name        String
+  description String?
+  containsPii Boolean  @default(false) @map("contains_pii")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase UseCase?     @relation(fields: [useCaseId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@map("datasets")
+}
+
+enum AssessmentStatus {
+  DRAFT
+  COMPLETED
+}
+
+/// A risk assessment run against a questionnaire, producing a tier + rationale.
+model RiskAssessment {
+  id              String           @id @default(uuid()) @db.Uuid
+  orgId           String           @map("org_id") @db.Uuid
+  useCaseId       String           @map("use_case_id") @db.Uuid
+  questionnaireId String?          @map("questionnaire_id") @db.Uuid
+  responses       Json?
+  computedTier    RiskTier         @default(UNASSIGNED) @map("computed_tier")
+  rationale       String?
+  status          AssessmentStatus @default(DRAFT)
+  assessedById    String?          @map("assessed_by_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase       UseCase        @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+  questionnaire Questionnaire? @relation(fields: [questionnaireId], references: [id])
+
+  @@index([orgId, useCaseId])
+  @@map("risk_assessments")
+}
+
+// ============================ Controls + evidence ============================
+
+enum ControlStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IMPLEMENTED
+  NOT_APPLICABLE
+}
+
+/// A required control mapped to a use case (which framework controls apply).
+model ControlMapping {
+  id        String        @id @default(uuid()) @db.Uuid
+  orgId     String        @map("org_id") @db.Uuid
+  useCaseId String        @map("use_case_id") @db.Uuid
+  controlId String        @map("control_id") @db.Uuid
+  status    ControlStatus @default(NOT_STARTED)
+  ownerId   String?       @map("owner_id") @db.Uuid
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase  UseCase      @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+  control  Control      @relation(fields: [controlId], references: [id])
+  evidence Evidence[]
+
+  @@unique([useCaseId, controlId])
+  @@index([orgId, status])
+  @@map("control_mappings")
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+}
+
+/// Evidence attached to a control mapping (file in S3, hashed, malware-scanned).
+model Evidence {
+  id               String     @id @default(uuid()) @db.Uuid
+  orgId            String     @map("org_id") @db.Uuid
+  controlMappingId String     @map("control_mapping_id") @db.Uuid
+  fileName         String     @map("file_name")
+  fileKey          String     @map("file_key")
+  mimeType         String?    @map("mime_type")
+  sha256           String?
+  scanStatus       ScanStatus @default(PENDING) @map("scan_status")
+  uploadedById     String?    @map("uploaded_by_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  org            Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  controlMapping ControlMapping @relation(fields: [controlMappingId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("evidence")
+}
+
+// ============================ Policy / workflow / approvals / reports ============================
+
+enum PolicyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Policy {
+  id        String       @id @default(uuid()) @db.Uuid
+  orgId     String       @map("org_id") @db.Uuid
+  title     String
+  body      String?
+  version   Int          @default(1)
+  status    PolicyStatus @default(DRAFT)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("policies")
+}
+
+model Workflow {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  useCaseId String?  @map("use_case_id") @db.Uuid
+  type      String
+  status    String   @default("open")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase UseCase?     @relation(fields: [useCaseId], references: [id], onDelete: SetNull)
+  tasks   Task[]
+
+  @@index([orgId])
+  @@map("workflows")
+}
+
+enum TaskStatus {
+  TODO
+  DOING
+  DONE
+}
+
+model Task {
+  id         String     @id @default(uuid()) @db.Uuid
+  orgId      String     @map("org_id") @db.Uuid
+  workflowId String     @map("workflow_id") @db.Uuid
+  title      String
+  assigneeId String?    @map("assignee_id") @db.Uuid
+  status     TaskStatus @default(TODO)
+  dueAt      DateTime?  @map("due_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  workflow Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("tasks")
+}
+
+enum Decision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Approval {
+  id         String    @id @default(uuid()) @db.Uuid
+  orgId      String    @map("org_id") @db.Uuid
+  useCaseId  String    @map("use_case_id") @db.Uuid
+  approverId String?   @map("approver_id") @db.Uuid
+  decision   Decision  @default(PENDING)
+  comment    String?
+  decidedAt  DateTime? @map("decided_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase UseCase      @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("approvals")
+}
+
+model Report {
+  id            String   @id @default(uuid()) @db.Uuid
+  orgId         String   @map("org_id") @db.Uuid
+  useCaseId     String?  @map("use_case_id") @db.Uuid
+  type          String
+  format        String   @default("pdf")
+  fileKey       String?  @map("file_key")
+  generatedById String?  @map("generated_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  useCase UseCase?     @relation(fields: [useCaseId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@map("reports")
+}
+
+// ============================ Content library (global, no RLS) ============================
+// Frameworks/controls/crosswalks/questionnaires are shared reference content,
+// versioned as data and updatable without a code deploy. Read-only to tenants.
+
+model Framework {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  version     String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  controls       Control[]
+  questionnaires Questionnaire[]
+
+  @@map("frameworks")
+}
+
+model Control {
+  id          String  @id @default(uuid()) @db.Uuid
+  frameworkId String  @map("framework_id") @db.Uuid
+  code        String
+  title       String
+  description String?
+  category    String?
+
+  framework      Framework          @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  mappings       ControlMapping[]
+  crosswalksFrom ControlCrosswalk[] @relation("from")
+  crosswalksTo   ControlCrosswalk[] @relation("to")
+
+  @@unique([frameworkId, code])
+  @@map("controls")
+}
+
+enum CrosswalkRel {
+  EQUIVALENT
+  RELATED
+  PARTIAL
+}
+
+/// Maps a control in one framework to a related control in another (the moat:
+/// one piece of evidence can satisfy multiple frameworks).
+model ControlCrosswalk {
+  id            String       @id @default(uuid()) @db.Uuid
+  fromControlId String       @map("from_control_id") @db.Uuid
+  toControlId   String       @map("to_control_id") @db.Uuid
+  relationship  CrosswalkRel @default(RELATED)
+
+  fromControl Control @relation("from", fields: [fromControlId], references: [id], onDelete: Cascade)
+  toControl   Control @relation("to", fields: [toControlId], references: [id], onDelete: Cascade)
+
+  @@unique([fromControlId, toControlId])
+  @@map("control_crosswalks")
+}
+
+enum QuestionType {
+  BOOLEAN
+  SINGLE_SELECT
+  MULTI_SELECT
+  TEXT
+}
+
+model Questionnaire {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  name        String
+  version     String
+  frameworkId String? @map("framework_id") @db.Uuid
+
+  framework   Framework?       @relation(fields: [frameworkId], references: [id])
+  questions   Question[]
+  assessments RiskAssessment[]
+
+  @@map("questionnaires")
+}
+
+model Question {
+  id              String       @id @default(uuid()) @db.Uuid
+  questionnaireId String       @map("questionnaire_id") @db.Uuid
+  order           Int
+  text            String
+  type            QuestionType @default(SINGLE_SELECT)
+  options         Json?
+  logic           Json?
+
+  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+
+  @@index([questionnaireId, order])
+  @@map("questions")
 }
