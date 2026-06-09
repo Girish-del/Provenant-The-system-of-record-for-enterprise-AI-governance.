@@ -437,6 +437,7 @@ model Questionnaire {
 model Question {
   id              String       @id @default(uuid()) @db.Uuid
   questionnaireId String       @map("questionnaire_id") @db.Uuid
+  key             String
   order           Int
   text            String
   type            QuestionType @default(SINGLE_SELECT)
@@ -445,6 +446,7 @@ model Question {
 
   questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
 
+  @@unique([questionnaireId, key])
   @@index([questionnaireId, order])
   @@map("questions")
 }

@@ -58,6 +58,7 @@ async function seedContent(): Promise<void> {
     await prisma.question.create({
       data: {
         questionnaireId: questionnaire.id,
+        key: qq.key,
         order: qq.order,
         text: qq.text,
         type: qq.type,
