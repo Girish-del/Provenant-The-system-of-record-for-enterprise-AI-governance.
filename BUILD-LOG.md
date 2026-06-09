@@ -76,6 +76,9 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   this is mostly configuration. Do after core features work.
 - ☐ B2 Membership-based RLS policy on `organizations` (currently app-layer guarded only).
 - ☐ B3 Convert `rls.sql` into a versioned Prisma migration (currently applied via script).
+- ☐ B4 Automated API integration tests (`apps/api`). Needs vitest + `unplugin-swc` (esbuild/tsx do not
+  emit decorator metadata, which NestJS DI requires) + `@nestjs/testing` + `supertest`. Until then the
+  API is covered by live smoke tests + the pure-logic unit tests in `@aegis/core`. Full E2E is M12.
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
