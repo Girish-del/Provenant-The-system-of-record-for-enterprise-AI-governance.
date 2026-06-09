@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-08
+**Last updated:** 2026-06-08 (component 1.1 done)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -25,7 +25,7 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 ## Component checklist (sequential)
 
 ### M1 — Foundation
-- ☐ 1.1 Monorepo scaffold (Turborepo + pnpm workspace, root config, shared `packages/config`)
+- ☑ 1.1 Monorepo scaffold (Turborepo + pnpm workspace, root config, shared `packages/config`) — commit 19c7d92
 - ☐ 1.2 Local dev: Docker Compose (Postgres, Redis, LocalStack) + Zod env schema + `pnpm dev`
 - ☐ 1.3 CI: GitHub Actions (typecheck, lint, test, build on PR)
 - ⊘ 1.4 Terraform skeleton (defer until first cloud deploy)
@@ -71,11 +71,16 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-08 — **1.1 Monorepo scaffold** (commit 19c7d92). Turborepo 2.9 + pnpm 9 workspace.
+  Root: package.json, pnpm-workspace.yaml, turbo.json, tsconfig.json, .prettierrc.json, .node-version.
+  `@aegis/config` (shared tsconfig.base). Workspace dirs apps/{web,api}, services/ai,
+  packages/{contracts,db,core,ui,content} with README placeholders. `pnpm install` verified;
+  turbo resolves the graph. Gotcha: Windows CRLF warnings on commit (harmless).
 - 2026-06-08 — Planning + design complete. 9 planning docs hardened, DESIGN.md + design-preview.html
-  created, BUILD-LOG + project CLAUDE.md + git initialized. Next: component 1.1 (monorepo scaffold).
+  created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**1.1 — Monorepo scaffold.** Create Turborepo + pnpm workspace: `apps/web`, `apps/api`,
-`services/ai`, `packages/{contracts,db,core,ui,config,content}`, root `package.json`,
-`pnpm-workspace.yaml`, `turbo.json`, base `tsconfig`, ESLint/Prettier. No install required to
-commit the scaffold. Then 1.2.
+**1.2 — Local dev environment.** Add `docker-compose.yml` (Postgres 16, Redis 7, LocalStack
+for S3), a Zod-validated env schema in `@aegis/config` (fail-fast on missing secrets),
+`.env.example`, and wire `pnpm dev` once apps exist. Then 1.3 (GitHub Actions CI).
+Note: UI components (M4+ frontend) need design sign-off on DESIGN.md first; M1–M3 do not.
