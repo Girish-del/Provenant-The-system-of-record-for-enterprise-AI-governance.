@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-09 (M4 + M5 COMPLETE — registry + framework library live-verified; next: M6)
+**Last updated:** 2026-06-09 (M6 + M7 COMPLETE — risk engine + control mapping/evidence live-verified; next: M8)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -53,8 +53,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 ### M4–M9 — Core features (fan-out candidates)
 - ☑ M4 AI Use-Case Registry (CRUD, lifecycle state machine, CSV import, RBAC, audit) — commit c8b76c2
 - ☑ M5 Framework/Control library + crosswalk resolution (read API over content) — commit 65b3812
-- ☐ M6 Risk classification engine + EU AI Act questionnaire → tier + rationale
-- ☐ M7 Control mapping + evidence upload (S3 + malware scan)
+- ☑ M6 Risk classification engine (`classifyRisk`) + assessment submit → tier + rationale — commit f74dd76
+- ☑ M7 Control mapping (suggest-by-tier) + evidence upload (S3/LocalStack + sha256 + EICAR scan) — commit 97dac13
 - ☐ M8 Intake → review → approve workflow + audit trail (hash-chained)
 - ☐ M9 Python AI service: classify + draft + suggest (Claude) + provenance logging
 
@@ -88,6 +88,15 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-09 — **M6 risk engine** (f74dd76) + **M7 control mapping/evidence** (97dac13). M6: pure
+  `classifyRisk` in `@aegis/core` (6 tests, most-severe tier wins) + `Question.key` schema + assessment
+  submit (classify→persist→update `UseCase.riskTier`→audit) + questionnaire fetch. Live: annex_iii→HIGH,
+  prohibited→PROHIBITED (precedence), none→MINIMAL. M7: `requiredControlCategories(tier)` (3 tests);
+  ControlMappings (map/suggest/list/update — suggest auto-maps the EU AI Act high-risk controls,
+  idempotent); Evidence upload (multipart → sha256 → EICAR scan → S3/LocalStack → Evidence row + audit).
+  Live: suggest mapped 7 controls, evidence CLEAN + INFECTED both stored in S3. Gotchas: Windows Defender
+  quarantines a literal EICAR file on disk ("permission denied") — pipe the bytes via `curl … -F file=@-`
+  to test INFECTED; bash `!` history expansion mangles the EICAR string — use `set +H`.
 - 2026-06-09 — **M4 Use-Case Registry** (c8b76c2) + **M5 Framework library** (65b3812). M4: `@aegis/core`
   lifecycle state machine (deny-by-default, 5 tests); `@aegis/contracts` NEW (Zod schemas/types);
   `apps/api` UseCasesController (CRUD/transition/CSV import), `forOrg`-scoped, RBAC-gated, audit-logged
@@ -147,18 +156,22 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M6 — Risk classification engine.** Score the EU AI Act questionnaire → tier + rationale.
-1. `@aegis/core`: pure `classifyRisk(answers, questionnaire)` — highest implied tier wins
-   (PROHIBITED > HIGH > LIMITED > MINIMAL) using the `impliesTierWhenTrue` hints seeded on questions;
-   produce a rationale. Unit tests per tier path.
-2. `@aegis/contracts`: assessment submit schema (useCaseId, questionnaireKey, answers) + result DTO.
-3. `apps/api`: `RiskAssessmentsController` — POST submit (`forOrg`, RBAC `risk:assess`) → compute
-   tier + rationale, persist `RiskAssessment`, update `UseCase.riskTier`, audit; GET list/detail.
-Verify: core unit tests for each tier path + live API submit against the seeded questionnaire.
+**M8 — Intake → review → approve workflow + hash-chained audit trail.**
+1. Workflow/Task/Approval API: submit a use case for review (creates an `Approval` PENDING + a `Workflow`),
+   reviewer decides APPROVE/REJECT (RBAC `review:decide`); approving transitions the use case
+   IN_REVIEW→APPROVED via the existing state machine; audit each step.
+2. Hash-chain the audit log: populate `prev_hash`/`entry_hash` (sha256 over prev_hash + canonical entry)
+   so the append-only log is tamper-evident; pure hashing in `@aegis/core` + a verify routine. Closes the
+   M4 note (hash columns currently unpopulated).
+Verify: core unit tests for the hash chain + live approve/reject flow vs Postgres.
+
+**Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
+S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
 
 ### How to run the stack locally (Postgres is up)
 ```
 docker compose up -d --wait postgres
+docker compose up -d localstack   # S3 for evidence (M7+)
 # schema + RLS (owner role)
 DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db exec prisma db push --skip-generate --accept-data-loss
 DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db rls:apply
@@ -166,7 +179,11 @@ DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db
 DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis pnpm --filter @aegis/db db:seed
 # isolation suite (app role)
 DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis pnpm --filter @aegis/db test
-# API (app role): DATABASE_URL=...aegis_app... (+ DIRECT_URL, REDIS_URL, SESSION_SECRET) node apps/api/dist/main.js
+# API (app role) — build first (pnpm --filter @aegis/api build), then:
+# DATABASE_URL=postgresql://aegis_app:aegis_app@localhost:5432/aegis DIRECT_URL=postgresql://aegis:aegis@localhost:5432/aegis \
+# REDIS_URL=redis://localhost:6379 SESSION_SECRET=dev-only-insecure-change-me-0123456789abcd \
+# S3_ENDPOINT=http://localhost:4566 S3_ACCESS_KEY_ID=test S3_SECRET_ACCESS_KEY=test S3_REGION=eu-central-1 S3_BUCKET=aegis-evidence \
+# node apps/api/dist/main.js
 ```
 Reminder: kill any lingering `node apps/api/dist/main.js` before `prisma generate` on Windows (DLL lock).
 
