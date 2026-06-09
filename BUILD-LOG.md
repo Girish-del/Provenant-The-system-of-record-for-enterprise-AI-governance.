@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-09 (M3 COMPLETE — data model + content + seed live-verified; next: M4)
+**Last updated:** 2026-06-09 (M4 + M5 COMPLETE — registry + framework library live-verified; next: M6)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -51,8 +51,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   content read-only enforced; isolation suite 4/4.
 
 ### M4–M9 — Core features (fan-out candidates)
-- ☐ M4 AI Use-Case Registry (CRUD, lifecycle, CSV import)
-- ☐ M5 Framework/Control library + crosswalk
+- ☑ M4 AI Use-Case Registry (CRUD, lifecycle state machine, CSV import, RBAC, audit) — commit c8b76c2
+- ☑ M5 Framework/Control library + crosswalk resolution (read API over content) — commit 65b3812
 - ☐ M6 Risk classification engine + EU AI Act questionnaire → tier + rationale
 - ☐ M7 Control mapping + evidence upload (S3 + malware scan)
 - ☐ M8 Intake → review → approve workflow + audit trail (hash-chained)
@@ -85,6 +85,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-09 — **M4 Use-Case Registry** (c8b76c2) + **M5 Framework library** (65b3812). M4: `@aegis/core`
+  lifecycle state machine (deny-by-default, 5 tests); `@aegis/contracts` NEW (Zod schemas/types);
+  `apps/api` UseCasesController (CRUD/transition/CSV import), `forOrg`-scoped, RBAC-gated, audit-logged
+  in-tx; ZodValidationPipe; quote-aware CSV parser. Live: CRUD, valid/invalid transitions (400), CSV
+  quoted-comma, audit_logs 4 actions. M5: FrameworksController (list/detail/crosswalks) over global
+  content; crosswalk resolution. Live: 2 fw (8/4 controls), Art9→NIST MANAGE, 404. `@aegis/db` now
+  re-exports all 18 model types; added `zod` as a direct api dep (pnpm strict resolution). Note: audit
+  hash-chain columns (prev_hash/entry_hash) exist but are populated in M8, not yet.
 - 2026-06-09 — **M3 complete: data model + content + seed** (commits 066c7f5, 86d4b88). 18 Prisma
   models; RLS applied via a loop to all 13 org-scoped tables (verified 13 `rowsecurity=true`).
   `@aegis/content`: EU AI Act (8 controls) + NIST AI RMF (4) + 4 crosswalks + EU AI Act risk
@@ -136,14 +144,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M4 — AI Use-Case Registry** (first real feature surface). Build:
-1. `@aegis/contracts` — ts-rest contract + Zod schemas for use cases (list/create/get/update/
-   transition/CSV import). Shared web↔api types.
-2. `apps/api` `UseCasesController` — CRUD + lifecycle transitions + CSV import, all `forOrg`-scoped,
-   RBAC-gated (`@RequireAction usecase:create|edit|view`), audit-logged (append-only AuditLog).
-3. Lifecycle state machine in `@aegis/core` (PROPOSED→IN_REVIEW→APPROVED→IN_PRODUCTION→RETIRED,
-   with allowed transitions) + unit tests.
-Verify: core unit tests + live API CRUD vs Postgres (seeded `demo-acme`) + isolation holds.
+**M6 — Risk classification engine.** Score the EU AI Act questionnaire → tier + rationale.
+1. `@aegis/core`: pure `classifyRisk(answers, questionnaire)` — highest implied tier wins
+   (PROHIBITED > HIGH > LIMITED > MINIMAL) using the `impliesTierWhenTrue` hints seeded on questions;
+   produce a rationale. Unit tests per tier path.
+2. `@aegis/contracts`: assessment submit schema (useCaseId, questionnaireKey, answers) + result DTO.
+3. `apps/api`: `RiskAssessmentsController` — POST submit (`forOrg`, RBAC `risk:assess`) → compute
+   tier + rationale, persist `RiskAssessment`, update `UseCase.riskTier`, audit; GET list/detail.
+Verify: core unit tests for each tier path + live API submit against the seeded questionnaire.
 
 ### How to run the stack locally (Postgres is up)
 ```
