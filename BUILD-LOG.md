@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M10 COMPLETE — readiness dashboard + gap report live-verified; next: M11)
+**Last updated:** 2026-06-10 (M11 + M12 COMPLETE — report export + Playwright E2E live-verified; next: M13)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -60,8 +60,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ### M10–M13 — Readiness, reports, tests, security
 - ☑ M10 Readiness dashboard + gap report (per-use-case + portfolio rollup) — commit 197faf2
-- ☐ M11 Report export (PDF/MD readiness doc)
-- ☐ M12 E2E (Playwright): intake → classify → map → evidence → approve → export
+- ☑ M11 Report export — Markdown "EU AI Act Readiness Report" + JSON (`GET /report.md`, `/report`) — commit 84c04be
+- ☑ M12 E2E (Playwright API mode): register → classify → map → evidence → approve → export, in CI — commit 3fc2eda
 - ☐ M13 Security pass: isolation tests, secret scan, SAST, headers
 
 ### M14–M17 — Production / commercial scope
@@ -93,6 +93,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M11 report export** (84c04be) + **M12 E2E** (3fc2eda). M11: pure
+  `renderReadinessReportMarkdown` in `@aegis/core` (4 tests, deterministic, pipe-escaped) — full EU AI
+  Act Readiness Report; `GET /use-cases/:id/report` (JSON) + `/report.md` (text/markdown), RBAC
+  report:export. M12: `e2e/` Playwright workspace in **API mode** (no UI yet, so `request` fixture, no
+  browser binaries). golden-path spec drives register→classify→suggest→implement+evidence→readiness→
+  submit→approve→export→audit-verify, plus 401 + cross-tenant-isolation. Playwright `webServer` boots
+  the API (reuseExistingServer off in CI). CI gains a LocalStack service, the E2E step, and a Python
+  `ai-service` pytest job. Verified live: 3/3 E2E green vs real Postgres(RLS)+LocalStack(S3).
 - 2026-06-10 — **M10 readiness + gap report** (197faf2). Pure `computeReadiness` in `@aegis/core`
   (6 tests): a required control counts only when IMPLEMENTED **with clean evidence** (or NOT_APPLICABLE);
   returns readiness %, status breakdown, and typed gaps with reasons. `ReadinessController`:
@@ -180,14 +188,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M11 — Report export (audit-ready readiness doc).**
-1. Pure report builder in `@aegis/core`: given the use case + its assessment (tier+rationale) +
-   control mappings + readiness summary + gaps + evidence list, render a deterministic Markdown
-   "EU AI Act Readiness Report" (sections: identity, risk classification, controls + status,
-   evidence, gaps, sign-off/approval trail). Unit-test the render.
-2. `apps/api`: GET /use-cases/:id/report.md (text/markdown) and GET /use-cases/:id/report (JSON of the
-   structured report). PDF can wrap the HTML render later (lib: keep it thin — defer heavy headless).
-Verify: core unit tests for the renderer + live export against a use case that has assessment+controls+evidence.
+**M13 — Security hardening pass.**
+1. Security HTTP headers on the API (helmet: CSP-off-for-API, HSTS, no-sniff, frame-deny) + tighten CORS.
+2. Per-tenant + per-IP rate limiting (`@nestjs/throttler` or Redis-based) on auth + mutation routes.
+3. Expand the isolation suite: add cross-tenant write/read tests for approvals/evidence/assessments
+   (not just memberships/use_cases). Add a "no audit UPDATE/DELETE as app role" assertion.
+4. Tighten the AI service: require `INTERNAL_API_TOKEN` in non-dev; never internet-reachable.
+5. Dependency + SAST: `pnpm audit`, `gitleaks` (already in CI), consider `semgrep`. Document in docs/05.
+Verify: unit/integration for headers + rate limit + expanded isolation; re-run E2E.
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
