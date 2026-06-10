@@ -72,3 +72,35 @@ describe('tenant isolation (RLS)', () => {
     expect(fromB.some((u) => u.id === created.id)).toBe(false);
   });
 });
+
+describe('audit log: tenant-scoped + append-only', () => {
+  it('cannot read another tenant audit rows', async () => {
+    const rowA = await forOrg(orgA, (tx) =>
+      tx.auditLog.create({ data: { orgId: orgA, action: 'test.a', targetType: 'Test' } }),
+    );
+    await forOrg(orgB, (tx) =>
+      tx.auditLog.create({ data: { orgId: orgB, action: 'test.b', targetType: 'Test' } }),
+    );
+    const fromA = await forOrg(orgA, (tx) => tx.auditLog.findMany());
+    expect(fromA.some((r) => r.id === rowA.id)).toBe(true);
+    expect(fromA.every((r) => r.orgId === orgA)).toBe(true);
+  });
+
+  it('rejects UPDATE by the app role (append-only)', async () => {
+    const row = await forOrg(orgA, (tx) =>
+      tx.auditLog.create({ data: { orgId: orgA, action: 'test.update', targetType: 'Test' } }),
+    );
+    await expect(
+      forOrg(orgA, (tx) => tx.auditLog.update({ where: { id: row.id }, data: { action: 'tampered' } })),
+    ).rejects.toThrow();
+  });
+
+  it('rejects DELETE by the app role (append-only)', async () => {
+    const row = await forOrg(orgA, (tx) =>
+      tx.auditLog.create({ data: { orgId: orgA, action: 'test.delete', targetType: 'Test' } }),
+    );
+    await expect(
+      forOrg(orgA, (tx) => tx.auditLog.delete({ where: { id: row.id } })),
+    ).rejects.toThrow();
+  });
+});

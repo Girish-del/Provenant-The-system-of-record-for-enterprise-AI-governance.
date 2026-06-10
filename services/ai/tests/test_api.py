@@ -50,3 +50,11 @@ def test_internal_token_enforced_when_configured(monkeypatch) -> None:
         json={"kind": "dpia", "use_case": {"name": "x", "risk_tier": "LIMITED"}},
     )
     assert res_ok.status_code == 200
+
+
+def test_internal_token_required_in_production(monkeypatch) -> None:
+    # Fail closed: production with no token refuses all calls.
+    monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+    monkeypatch.setenv("APP_ENV", "production")
+    res = client.post("/draft", json={"kind": "dpia", "use_case": {"name": "x"}})
+    assert res.status_code == 503

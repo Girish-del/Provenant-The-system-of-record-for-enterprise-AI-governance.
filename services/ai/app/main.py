@@ -26,10 +26,15 @@ _provider = get_provider()
 
 
 def require_internal(x_internal_token: str | None = Header(default=None)) -> None:
-    """If INTERNAL_API_TOKEN is configured, require it. Keeps the service callable
-    only by the core API, never directly by tenants."""
+    """Gate the internal API to the core service. If a token is configured, require a
+    matching header. In production a token is mandatory: if it is missing, refuse all
+    calls (fail closed) rather than running open."""
     token = os.environ.get("INTERNAL_API_TOKEN")
-    if token and x_internal_token != token:
+    if not token:
+        if os.environ.get("APP_ENV", "development").lower() == "production":
+            raise HTTPException(status_code=503, detail="internal token not configured")
+        return
+    if x_internal_token != token:
         raise HTTPException(status_code=401, detail="internal token required")
 
 
