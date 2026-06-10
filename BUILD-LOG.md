@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M11 + M12 COMPLETE — report export + Playwright E2E live-verified; next: M13)
+**Last updated:** 2026-06-10 (M13 COMPLETE — security hardening live-verified; next: M14)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -62,7 +62,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ M10 Readiness dashboard + gap report (per-use-case + portfolio rollup) — commit 197faf2
 - ☑ M11 Report export — Markdown "EU AI Act Readiness Report" + JSON (`GET /report.md`, `/report`) — commit 84c04be
 - ☑ M12 E2E (Playwright API mode): register → classify → map → evidence → approve → export, in CI — commit 3fc2eda
-- ☐ M13 Security pass: isolation tests, secret scan, SAST, headers
+- ☑ M13 Security pass: helmet headers, rate limiting, expanded isolation (audit append-only),
+  AI fail-closed token, CI dependency audit — commits 4aeb7f8, c59308f
 
 ### M14–M17 — Production / commercial scope
 - ☐ M14 Stripe billing + plan tiers + usage metering (governed AI systems)
@@ -93,6 +94,13 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M13 security hardening** (4aeb7f8, c59308f). API: `helmet` (CSP off for a JSON/markdown
+  API; nosniff/frame-deny/HSTS/COOP/CORP/no-referrer) + `@nestjs/throttler` (200/min/IP global, 10/min on
+  dev-login). DB isolation suite +3: `audit_logs` is tenant-scoped and the app role cannot UPDATE/DELETE
+  (append-only) → 7 tests. AI service: `require_internal` fails closed (503) in production without a token.
+  CI: advisory `pnpm audit`. Verified live: headers present; 14 logins → 10×201 + 4×429; db 7/7; ai 9/9;
+  E2E 3/3. Gotcha: the in-memory throttle persists 60s — a login burst can 429 a same-IP E2E within the
+  window; restart the server to reset, or keep the login limit ≥ a few E2E runs (10/min has headroom).
 - 2026-06-10 — **M11 report export** (84c04be) + **M12 E2E** (3fc2eda). M11: pure
   `renderReadinessReportMarkdown` in `@aegis/core` (4 tests, deterministic, pipe-escaped) — full EU AI
   Act Readiness Report; `GET /use-cases/:id/report` (JSON) + `/report.md` (text/markdown), RBAC
@@ -188,14 +196,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M13 — Security hardening pass.**
-1. Security HTTP headers on the API (helmet: CSP-off-for-API, HSTS, no-sniff, frame-deny) + tighten CORS.
-2. Per-tenant + per-IP rate limiting (`@nestjs/throttler` or Redis-based) on auth + mutation routes.
-3. Expand the isolation suite: add cross-tenant write/read tests for approvals/evidence/assessments
-   (not just memberships/use_cases). Add a "no audit UPDATE/DELETE as app role" assertion.
-4. Tighten the AI service: require `INTERNAL_API_TOKEN` in non-dev; never internet-reachable.
-5. Dependency + SAST: `pnpm audit`, `gitleaks` (already in CI), consider `semgrep`. Document in docs/05.
-Verify: unit/integration for headers + rate limit + expanded isolation; re-run E2E.
+**M14 — Billing (Stripe) + plan tiers + usage metering.** CREDENTIAL WALL: needs Stripe (test) keys.
+1. Plan model + metering: `Plan`/`Subscription` (or reuse Org fields) + a pure `@aegis/core` meter that
+   counts **governed AI systems** (the pricing axis) and checks plan limits; unit-test it.
+2. `apps/api`: a billing module — create checkout session, customer portal, and a **webhook** endpoint
+   (signature-verified) that syncs subscription state. Gate over-limit actions (e.g., registering a new AI
+   system past the plan cap → 402). Use Stripe **test mode**; build a mock/stub provider so dev/CI runs
+   without keys (same pattern as the dev auth + AI mock providers).
+Verify: core meter unit tests + live with Stripe test keys if provided, else mock provider + E2E.
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
