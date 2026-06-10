@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-09 (M6 + M7 COMPLETE — risk engine + control mapping/evidence live-verified; next: M8)
+**Last updated:** 2026-06-10 (M8 + M9 COMPLETE — workflow/hash-chain + AI service live-verified; next: M10)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -55,8 +55,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ M5 Framework/Control library + crosswalk resolution (read API over content) — commit 65b3812
 - ☑ M6 Risk classification engine (`classifyRisk`) + assessment submit → tier + rationale — commit f74dd76
 - ☑ M7 Control mapping (suggest-by-tier) + evidence upload (S3/LocalStack + sha256 + EICAR scan) — commit 97dac13
-- ☐ M8 Intake → review → approve workflow + audit trail (hash-chained)
-- ☐ M9 Python AI service: classify + draft + suggest (Claude) + provenance logging
+- ☑ M8 Intake → review → approve workflow + **hash-chained tamper-evident audit** — commits d0960ce, 1b6d4fc
+- ☑ M9 Python AI service (FastAPI): draft + suggest-controls + provenance; mock + Claude providers — commit 2589141
 
 ### M10–M13 — Readiness, reports, tests, security
 - ☐ M10 Readiness dashboard + gap report
@@ -79,6 +79,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☐ B4 Automated API integration tests (`apps/api`). Needs vitest + `unplugin-swc` (esbuild/tsx do not
   emit decorator metadata, which NestJS DI requires) + `@nestjs/testing` + `supertest`. Until then the
   API is covered by live smoke tests + the pure-logic unit tests in `@aegis/core`. Full E2E is M12.
+- ☐ B5 Wire the core API → AI service: a NestJS endpoint (e.g. `POST /use-cases/:id/ai/draft`) that
+  calls the Python service at `AI_SERVICE_URL` (with `X-Internal-Token`) and returns the draft +
+  provenance to the UI. The AI service (M9) currently runs standalone; nothing in `apps/api` calls it yet.
+- ☐ B6 Workflow/Task tables exist but M8 uses `Approval` directly. Richer routing (multi-step, RACI,
+  SLAs, reminders) is reserved for a later workflow-engine pass (Temporal per the roadmap).
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
@@ -88,6 +93,17 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M8 workflow + hash-chain** (d0960ce, 1b6d4fc) + **M9 AI service** (2589141). M8:
+  pure audit-hash in `@aegis/core` (stableStringify/canonicalize/computeEntryHash/verifyAuditChain,
+  5 tests); `AuditLog.seq` (bigserial) for chain order; `audit()` advisory-locks per org + sha256-chains
+  (prev_hash/entry_hash); GET /audit + /audit/chain/verify (admin). Approvals: submit-for-review →
+  IN_REVIEW + PENDING; decide (review:decide) → APPROVED/REJECTED with lifecycle transition; queue;
+  already-decided → 409. Live: tamper a row → verify {valid:false,brokenAt:1}; full approve/reject;
+  chain valid after the workflow. M9: `services/ai` (FastAPI, uv); /draft + /suggest-controls with
+  provenance (advisory/labeled/sourced/logged); MockProvider (no key) + ClaudeProvider
+  (claude-sonnet-4-0, on ANTHROPIC_API_KEY); INTERNAL_API_TOKEN gate; 8 pytest + live uvicorn.
+  Gotchas: pg_advisory_xact_lock returns void → wrap in a subquery for Prisma $queryRaw; adding a
+  required Question.key to a non-empty table needs the rows cleared first.
 - 2026-06-09 — **M6 risk engine** (f74dd76) + **M7 control mapping/evidence** (97dac13). M6: pure
   `classifyRisk` in `@aegis/core` (6 tests, most-severe tier wins) + `Question.key` schema + assessment
   submit (classify→persist→update `UseCase.riskTier`→audit) + questionnaire fetch. Live: annex_iii→HIGH,
