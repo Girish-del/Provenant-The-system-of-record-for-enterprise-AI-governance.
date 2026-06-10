@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 .next/
+next-env.d.ts
 out/
 .turbo/
 *.tsbuildinfo
@@ -42,3 +43,4 @@ npm-debug.log*
 
 # Local design artifacts (keep DESIGN.md + design-preview.html; ignore scratch)
 /tmp-design/
+.gstack/

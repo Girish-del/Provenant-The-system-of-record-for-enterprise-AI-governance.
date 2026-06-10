@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+/*
+ * Aegis design tokens — mirrors DESIGN.md.
+ * Lapis primary, Sand signature accent, Carmine = critical/Prohibited only.
+ * Fraunces (display) + Geist (UI/data) + Geist Mono.
+ */
+@theme {
+  /* Brand */
+  --color-primary: #255c99;
+  --color-primary-hover: #1e4d80;
+  --color-secondary: #7ea3cc;
+  --color-ink: #262626;
+  --color-sand: #ccad8f;
+  --color-sand-soft: #f4ece3;
+  --color-carmine: #b3001b;
+
+  /* Neutrals */
+  --color-canvas: #ffffff;
+  --color-surface: #f7f8fa;
+  --color-raised: #ffffff;
+  --color-border: #e1e6ec;
+  --color-border-strong: #cbd3dc;
+  --color-muted: #6b7682;
+  --color-faint: #9aa6b2;
+
+  /* Risk tiers (EU AI Act) */
+  --color-risk-prohibited: #b3001b;
+  --color-risk-high: #c2410c;
+  --color-risk-limited: #b7791f;
+  --color-risk-minimal: #3f7d58;
+
+  /* Semantic */
+  --color-success: #3f7d58;
+  --color-warning: #b7791f;
+  --color-danger: #b3001b;
+  --color-info: #255c99;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv01', 'ss01';
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  /* Tabular numbers for data-dense surfaces. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--color-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+    outline-offset: 1px;
+  }
+}
