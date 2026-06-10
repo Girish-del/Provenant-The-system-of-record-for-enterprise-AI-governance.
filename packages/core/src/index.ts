@@ -5,4 +5,5 @@ export * from './lifecycle';
 export * from './risk';
 export * from './controls';
 export * from './readiness';
+export * from './report';
 export * from './audit-hash';

@@ -20,6 +20,8 @@ import { ApprovalsController } from './approvals/approvals.controller.js';
 import { ApprovalsService } from './approvals/approvals.service.js';
 import { ReadinessController } from './readiness/readiness.controller.js';
 import { ReadinessService } from './readiness/readiness.service.js';
+import { ReportsController } from './reports/reports.controller.js';
+import { ReportsService } from './reports/reports.service.js';
 
 @Module({
   controllers: [
@@ -35,6 +37,7 @@ import { ReadinessService } from './readiness/readiness.service.js';
     AuditController,
     ApprovalsController,
     ReadinessController,
+    ReportsController,
   ],
   providers: [
     AuthService,
@@ -46,6 +49,7 @@ import { ReadinessService } from './readiness/readiness.service.js';
     AuditService,
     ApprovalsService,
     ReadinessService,
+    ReportsService,
   ],
 })
 export class AppModule {}
