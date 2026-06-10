@@ -14,6 +14,8 @@ import { ControlMappingsController } from './controls/control-mappings.controlle
 import { ControlMappingsService } from './controls/control-mappings.service.js';
 import { EvidenceController } from './evidence/evidence.controller.js';
 import { EvidenceService } from './evidence/evidence.service.js';
+import { AuditController } from './audit/audit.controller.js';
+import { AuditService } from './audit/audit.service.js';
 
 @Module({
   controllers: [
@@ -26,6 +28,7 @@ import { EvidenceService } from './evidence/evidence.service.js';
     QuestionnairesController,
     ControlMappingsController,
     EvidenceController,
+    AuditController,
   ],
   providers: [
     AuthService,
@@ -34,6 +37,7 @@ import { EvidenceService } from './evidence/evidence.service.js';
     AssessmentsService,
     ControlMappingsService,
     EvidenceService,
+    AuditService,
   ],
 })
 export class AppModule {}

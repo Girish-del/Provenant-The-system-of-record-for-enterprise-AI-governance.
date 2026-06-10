@@ -4,3 +4,4 @@ export * from './auth';
 export * from './lifecycle';
 export * from './risk';
 export * from './controls';
+export * from './audit-hash';
