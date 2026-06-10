@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M8 + M9 COMPLETE — workflow/hash-chain + AI service live-verified; next: M10)
+**Last updated:** 2026-06-10 (M10 COMPLETE — readiness dashboard + gap report live-verified; next: M11)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -59,7 +59,7 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ M9 Python AI service (FastAPI): draft + suggest-controls + provenance; mock + Claude providers — commit 2589141
 
 ### M10–M13 — Readiness, reports, tests, security
-- ☐ M10 Readiness dashboard + gap report
+- ☑ M10 Readiness dashboard + gap report (per-use-case + portfolio rollup) — commit 197faf2
 - ☐ M11 Report export (PDF/MD readiness doc)
 - ☐ M12 E2E (Playwright): intake → classify → map → evidence → approve → export
 - ☐ M13 Security pass: isolation tests, secret scan, SAST, headers
@@ -93,6 +93,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M10 readiness + gap report** (197faf2). Pure `computeReadiness` in `@aegis/core`
+  (6 tests): a required control counts only when IMPLEMENTED **with clean evidence** (or NOT_APPLICABLE);
+  returns readiness %, status breakdown, and typed gaps with reasons. `ReadinessController`:
+  GET /use-cases/:id/readiness (per use case) + GET /readiness (portfolio: by tier/lifecycle, audit-ready
+  count, avg %, high-risk-not-ready). Required controls = EU AI Act controls for the use case's risk tier
+  (`requiredControlCategories`). Portfolio uses 3 queries + in-memory rollup (no N+1). Live: 0% → 14% as a
+  control goes mapped → implemented → +clean evidence. Also re-verified M8/M9 live this session
+  (tamper → {valid:false,brokenAt:0}; M9 8 pytest + live) and confirmed RLS forced on all 13 org-scoped tables.
 - 2026-06-10 — **M8 workflow + hash-chain** (d0960ce, 1b6d4fc) + **M9 AI service** (2589141). M8:
   pure audit-hash in `@aegis/core` (stableStringify/canonicalize/computeEntryHash/verifyAuditChain,
   5 tests); `AuditLog.seq` (bigserial) for chain order; `audit()` advisory-locks per org + sha256-chains
@@ -172,14 +180,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M8 — Intake → review → approve workflow + hash-chained audit trail.**
-1. Workflow/Task/Approval API: submit a use case for review (creates an `Approval` PENDING + a `Workflow`),
-   reviewer decides APPROVE/REJECT (RBAC `review:decide`); approving transitions the use case
-   IN_REVIEW→APPROVED via the existing state machine; audit each step.
-2. Hash-chain the audit log: populate `prev_hash`/`entry_hash` (sha256 over prev_hash + canonical entry)
-   so the append-only log is tamper-evident; pure hashing in `@aegis/core` + a verify routine. Closes the
-   M4 note (hash columns currently unpopulated).
-Verify: core unit tests for the hash chain + live approve/reject flow vs Postgres.
+**M11 — Report export (audit-ready readiness doc).**
+1. Pure report builder in `@aegis/core`: given the use case + its assessment (tier+rationale) +
+   control mappings + readiness summary + gaps + evidence list, render a deterministic Markdown
+   "EU AI Act Readiness Report" (sections: identity, risk classification, controls + status,
+   evidence, gaps, sign-off/approval trail). Unit-test the render.
+2. `apps/api`: GET /use-cases/:id/report.md (text/markdown) and GET /use-cases/:id/report (JSON of the
+   structured report). PDF can wrap the HTML render later (lib: keep it thin — defer heavy headless).
+Verify: core unit tests for the renderer + live export against a use case that has assessment+controls+evidence.
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
