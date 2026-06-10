@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M13 COMPLETE — security hardening live-verified; next: M14)
+**Last updated:** 2026-06-10 (Web console shipped + M1–M13 verified; next: M14)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -85,6 +85,9 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   provenance to the UI. The AI service (M9) currently runs standalone; nothing in `apps/api` calls it yet.
 - ☐ B6 Workflow/Task tables exist but M8 uses `Approval` directly. Richer routing (multi-step, RACI,
   SLAs, reminders) is reserved for a later workflow-engine pass (Temporal per the roadmap).
+- ☐ B7 Remaining console screens (`apps/web`): risk-assessment questionnaire UI, controls + evidence
+  management, reports list, policies, settings, org/member admin. Login + dashboard + inventory + use-case
+  detail shipped; these are the next UI slices.
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
@@ -94,6 +97,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **Web console** (d3fb6f9). First real frontend (`apps/web` was a placeholder): Next.js 15
+  App Router + Tailwind v4 styled to `DESIGN.md` (Lapis/Sand, Fraunces + Geist), cookie auth to the API.
+  Screens: `/login` (two-column Fraunces hero), `/` dashboard (readiness stats + risk distribution +
+  recent systems + deadline alert), `/inventory` (table + register modal), `/inventory/[id]` (overview,
+  control matrix, gaps, audit-readiness, approval trail, report export). Verified: `next build` 7/7;
+  seeded 7 systems via API; screenshotted all 4 screens (look polished, not AI-slop). Decisions: type-check
+  via `next build` (no bare `tsc` — avoids the CI `next-env.d.ts` ordering issue); the web talks to the API
+  directly from the browser with `credentials:'include'` (same-site cookie across ports works in dev).
 - 2026-06-10 — **M13 security hardening** (4aeb7f8, c59308f). API: `helmet` (CSP off for a JSON/markdown
   API; nosniff/frame-deny/HSTS/COOP/CORP/no-referrer) + `@nestjs/throttler` (200/min/IP global, 10/min on
   dev-login). DB isolation suite +3: `audit_logs` is tenant-scoped and the app role cannot UPDATE/DELETE
