@@ -6,4 +6,5 @@ export * from './risk';
 export * from './controls';
 export * from './readiness';
 export * from './report';
+export * from './billing';
 export * from './audit-hash';

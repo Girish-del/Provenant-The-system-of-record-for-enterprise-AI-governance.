@@ -24,6 +24,8 @@ import { ReadinessController } from './readiness/readiness.controller.js';
 import { ReadinessService } from './readiness/readiness.service.js';
 import { ReportsController } from './reports/reports.controller.js';
 import { ReportsService } from './reports/reports.service.js';
+import { BillingController } from './billing/billing.controller.js';
+import { BillingService } from './billing/billing.service.js';
 
 @Module({
   imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 200 }])],
@@ -41,6 +43,7 @@ import { ReportsService } from './reports/reports.service.js';
     ApprovalsController,
     ReadinessController,
     ReportsController,
+    BillingController,
   ],
   providers: [
     AuthService,
@@ -53,6 +56,7 @@ import { ReportsService } from './reports/reports.service.js';
     ApprovalsService,
     ReadinessService,
     ReportsService,
+    BillingService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

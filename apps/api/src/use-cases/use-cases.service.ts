@@ -1,6 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { forOrg, type UseCase } from '@aegis/db';
-import { assertTransition, InvalidTransitionError, type LifecycleState } from '@aegis/core';
+import {
+  assertTransition,
+  InvalidTransitionError,
+  canRegisterSystem,
+  PLANS,
+  type LifecycleState,
+  type PlanTier,
+} from '@aegis/core';
 import type { CreateUseCaseInput, UpdateUseCaseInput, ListUseCasesQuery } from '@aegis/contracts';
 import { audit } from '../common/audit.js';
 import { parseUseCaseCsv } from './csv.js';
@@ -32,6 +45,18 @@ export class UseCasesService {
 
   create(orgId: string, actorId: string, input: CreateUseCaseInput): Promise<UseCase> {
     return forOrg(orgId, async (tx) => {
+      const org = await tx.organization.findUnique({
+        where: { id: orgId },
+        select: { plan: true },
+      });
+      const tier = (org?.plan ?? 'FREE') as PlanTier;
+      const used = await tx.useCase.count();
+      if (!canRegisterSystem(tier, used)) {
+        throw new HttpException(
+          `Plan limit reached: ${PLANS[tier].name} allows ${PLANS[tier].systemLimit} governed AI systems. Upgrade to register more.`,
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
       const useCase = await tx.useCase.create({
         data: {
           orgId,

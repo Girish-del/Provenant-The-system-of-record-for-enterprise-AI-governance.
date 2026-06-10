@@ -21,11 +21,24 @@ enum MembershipRole {
 }
 
 /// A tenant. The root of the data model; everything else hangs off an org.
+enum PlanTier {
+  FREE
+  TEAM
+  BUSINESS
+  ENTERPRISE
+}
+
 model Organization {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   slug      String   @unique
   region    String   @default("eu-central-1")
+
+  plan                 PlanTier @default(FREE)
+  stripeCustomerId     String?  @map("stripe_customer_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  subscriptionStatus   String?  @map("subscription_status")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
