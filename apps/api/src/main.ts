@@ -1,11 +1,17 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { env } from './env.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { cors: { origin: env.WEB_URL, credentials: true } });
+  const app = await NestFactory.create(AppModule, {
+    cors: { origin: env.WEB_URL, credentials: true },
+  });
+  // Security headers. CSP is disabled because this is a JSON/markdown API (CSP is a
+  // browser-document control); the rest (nosniff, frame-deny, HSTS, etc.) still apply.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
   app.enableShutdownHooks();
   const port = Number(new URL(env.API_URL).port) || 3001;

@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { prisma } from '@aegis/db';
 import { AuthService } from './auth.service.js';
 import { AuthGuard } from './auth.guard.js';
@@ -21,6 +22,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('dev/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async devLogin(
     @Body() body: { email?: string },
     @Res({ passthrough: true }) res: Response,
