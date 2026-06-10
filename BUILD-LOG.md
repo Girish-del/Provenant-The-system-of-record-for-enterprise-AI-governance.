@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (Web console shipped + M1–M13 verified; next: M14)
+**Last updated:** 2026-06-10 (Web console + M14 billing complete; next: M15 platform ops)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -66,7 +66,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   AI fail-closed token, CI dependency audit — commits 4aeb7f8, c59308f
 
 ### M14–M17 — Production / commercial scope
-- ☐ M14 Stripe billing + plan tiers + usage metering (governed AI systems)
+- ☑ M14 Billing: plan tiers + usage metering (governed AI systems) + 402 cap enforcement; Stripe-ready
+  (mock provider without keys) — commit 56b841a
 - ☐ M15 Platform ops: Sentry + PostHog (analytics + flags) + OTel + Resend email
 - ☐ M16 AI cost controls: model routing, prompt caching, per-tenant budgets, circuit breaker
 - ☐ M17 PLG assessment surface (low-friction funnel)
@@ -86,8 +87,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☐ B6 Workflow/Task tables exist but M8 uses `Approval` directly. Richer routing (multi-step, RACI,
   SLAs, reminders) is reserved for a later workflow-engine pass (Temporal per the roadmap).
 - ☐ B7 Remaining console screens (`apps/web`): risk-assessment questionnaire UI, controls + evidence
-  management, reports list, policies, settings, org/member admin. Login + dashboard + inventory + use-case
-  detail shipped; these are the next UI slices.
+  management, reports list, policies, settings + **billing/plan page**, org/member admin. Login + dashboard
+  + inventory + use-case detail shipped; these are the next UI slices.
+- ☐ B8 Real Stripe integration: Checkout Session creation + signature-verified webhook
+  (`checkout.session.completed` / `customer.subscription.updated` → sync `Organization.plan`). Needs Stripe
+  test keys + price IDs. Today the plan-change path is the dev-only `POST /billing/dev/set-plan`.
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
@@ -97,6 +101,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M14 billing** (56b841a). `@aegis/core`: PLANS (Free 3 / Team 25 / Business 100 /
+  Enterprise unlimited), `meter()`, `canRegisterSystem()` — 6 unit tests. Schema: `Organization.plan`
+  (PlanTier) + stripe customer/subscription ids + `subscriptionStatus`. `apps/api` billing: GET /billing
+  (plan + usage meter), POST /billing/checkout (mock without keys; real Stripe behind STRIPE_SECRET_KEY),
+  POST /billing/dev/set-plan (dev-only, simulates the post-checkout webhook; 403 in production). Registering
+  a use case past the cap → 402. Live: FREE cap 3 → 4th=402; upgrade TEAM → 4th=201; meter + mock checkout.
+  Gotcha (recurring): a still-running dev API holds the Prisma engine DLL → `prisma generate` EPERM on
+  Windows; find the real PID (`Get-CimInstance Win32_Process ... main.js`) and kill it, netstat PID alone lied.
 - 2026-06-10 — **Web console** (d3fb6f9). First real frontend (`apps/web` was a placeholder): Next.js 15
   App Router + Tailwind v4 styled to `DESIGN.md` (Lapis/Sand, Fraunces + Geist), cookie auth to the API.
   Screens: `/login` (two-column Fraunces hero), `/` dashboard (readiness stats + risk distribution +
@@ -207,14 +219,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M14 — Billing (Stripe) + plan tiers + usage metering.** CREDENTIAL WALL: needs Stripe (test) keys.
-1. Plan model + metering: `Plan`/`Subscription` (or reuse Org fields) + a pure `@aegis/core` meter that
-   counts **governed AI systems** (the pricing axis) and checks plan limits; unit-test it.
-2. `apps/api`: a billing module — create checkout session, customer portal, and a **webhook** endpoint
-   (signature-verified) that syncs subscription state. Gate over-limit actions (e.g., registering a new AI
-   system past the plan cap → 402). Use Stripe **test mode**; build a mock/stub provider so dev/CI runs
-   without keys (same pattern as the dev auth + AI mock providers).
-Verify: core meter unit tests + live with Stripe test keys if provided, else mock provider + E2E.
+**M15 — Platform ops.** Error tracking (Sentry), product analytics + feature flags (PostHog),
+transactional email (Resend), OpenTelemetry tracing across api + ai. CREDENTIAL WALLS (Sentry DSN,
+PostHog key, Resend key) — wire via env with a **no-op fallback** so dev/CI run without them (same mock
+pattern as dev-auth / AI-mock / billing-mock). Verify: boots with keys unset (no-op) + a check that the
+wrappers degrade gracefully.
+
+Then M16 (AI cost controls) and M17 (PLG assessment surface). Also pending: B7 (remaining UI screens,
+incl. a billing/settings page) and B8 (real Stripe checkout + webhook).
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
