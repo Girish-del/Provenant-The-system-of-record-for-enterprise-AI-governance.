@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Typecheck / Lint / Test / Build
+    name: Typecheck / Lint / Test / Build / E2E
     runs-on: ubuntu-latest
 
     services:
@@ -29,6 +29,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      localstack:
+        image: localstack/localstack:3
+        env:
+          SERVICES: s3
+          DEFAULT_REGION: eu-central-1
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
 
     env:
       # Migrations + RLS setup run as the owner role.
@@ -73,6 +85,20 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: E2E (full governance pipeline)
+        env:
+          CI: 'true'
+        run: pnpm --filter @aegis/e2e test
+
+  ai-service:
+    name: AI service (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Test
+        run: uv run --directory services/ai pytest -q
 
   security:
     name: Secret scan

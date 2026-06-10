@@ -1,0 +1,12 @@
+{
+  "name": "@aegis/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end API tests for the Aegis governance pipeline (Playwright)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}
