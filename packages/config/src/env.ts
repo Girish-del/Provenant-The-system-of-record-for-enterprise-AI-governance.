@@ -32,15 +32,22 @@ export const envSchema = z.object({
   // Auth: WorkOS (optional in dev; a dev auth provider is used until these are set)
   WORKOS_API_KEY: z.string().optional(),
   WORKOS_CLIENT_ID: z.string().optional(),
+  WORKOS_REDIRECT_URI: z.string().url().optional(),
 
   // AI: Anthropic (required once the AI service is wired, M9)
   ANTHROPIC_API_KEY: z.string().optional(),
+  // Shared secret between the core API and the internal AI service
+  INTERNAL_API_TOKEN: z.string().optional(),
 
   // Commercial / ops (required at their components, M14/M15)
   STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_TEAM: z.string().optional(),
+  STRIPE_PRICE_BUSINESS: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { HealthController } from './health/health.controller.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
+import { SsoController } from './auth/sso.controller.js';
 import { MembershipsController } from './memberships/memberships.controller.js';
+import { MembershipsService } from './memberships/memberships.service.js';
 import { UseCasesController } from './use-cases/use-cases.controller.js';
 import { UseCasesService } from './use-cases/use-cases.service.js';
 import { FrameworksController } from './frameworks/frameworks.controller.js';
@@ -26,15 +28,21 @@ import { ReportsController } from './reports/reports.controller.js';
 import { ReportsService } from './reports/reports.service.js';
 import { BillingController } from './billing/billing.controller.js';
 import { BillingService } from './billing/billing.service.js';
+import { StripeService } from './billing/stripe.service.js';
+import { StripeWebhookController } from './billing/stripe-webhook.controller.js';
 import { OpsService } from './ops/ops.service.js';
 import { PublicAssessmentController } from './public/public-assessment.controller.js';
 import { PublicAssessmentService } from './public/public-assessment.service.js';
+import { AiController } from './ai/ai.controller.js';
+import { AiService } from './ai/ai.service.js';
+import { PoliciesController } from './policies/policies.controller.js';
 
 @Module({
   imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 200 }])],
   controllers: [
     HealthController,
     AuthController,
+    SsoController,
     MembershipsController,
     UseCasesController,
     FrameworksController,
@@ -47,10 +55,14 @@ import { PublicAssessmentService } from './public/public-assessment.service.js';
     ReadinessController,
     ReportsController,
     BillingController,
+    StripeWebhookController,
     PublicAssessmentController,
+    AiController,
+    PoliciesController,
   ],
   providers: [
     AuthService,
+    MembershipsService,
     UseCasesService,
     FrameworksService,
     AssessmentsService,
@@ -61,8 +73,10 @@ import { PublicAssessmentService } from './public/public-assessment.service.js';
     ReadinessService,
     ReportsService,
     BillingService,
+    StripeService,
     OpsService,
     PublicAssessmentService,
+    AiService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

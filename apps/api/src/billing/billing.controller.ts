@@ -12,11 +12,15 @@ import { RequireAction } from '../auth/roles.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { RequestWithSession } from '../auth/session.types.js';
 import { BillingService } from './billing.service.js';
+import { StripeService } from './stripe.service.js';
 
 @Controller('billing')
 @UseGuards(AuthGuard, RolesGuard)
 export class BillingController {
-  constructor(private readonly service: BillingService) {}
+  constructor(
+    private readonly service: BillingService,
+    private readonly stripe: StripeService,
+  ) {}
 
   @Get()
   @RequireAction('usecase:view')
@@ -26,10 +30,14 @@ export class BillingController {
 
   @Post('checkout')
   @RequireAction('org:manage')
-  checkout(
+  async checkout(
     @Req() req: RequestWithSession,
     @Body(new ZodValidationPipe(checkoutSchema)) body: CheckoutInput,
-  ): { url: string; mock: boolean } {
+  ): Promise<{ url: string; mock: boolean }> {
+    if (this.stripe.enabled) {
+      const { url } = await this.stripe.createCheckout(req.session!.orgId, body.tier);
+      return { url, mock: false };
+    }
     return this.service.checkout(req.session!.orgId, body.tier);
   }
 

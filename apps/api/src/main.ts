@@ -1,3 +1,4 @@
+import './otel.js'; // must be first: OTel auto-instrumentation patches modules at import time
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
@@ -13,6 +14,7 @@ import { AllExceptionsFilter } from './ops/all-exceptions.filter.js';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     cors: { origin: env.WEB_URL, credentials: true },
+    rawBody: true, // Stripe webhook signature verification needs the exact bytes
   });
   // Security headers. CSP is disabled because this is a JSON/markdown API (CSP is a
   // browser-document control); the rest (nosniff, frame-deny, HSTS, etc.) still apply.

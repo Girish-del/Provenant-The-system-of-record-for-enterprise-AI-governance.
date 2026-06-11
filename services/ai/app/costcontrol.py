@@ -131,16 +131,65 @@ class CircuitBreaker:
         return "open" if self._opened_at is not None else "closed"
 
 
+class RedisTokenBudget:
+    """Redis-backed budget (B10): correct across replicas and restarts. Keys are
+    `ai_budget:{org}:{utc-date}` with a 2-day TTL. Same interface as TokenBudget."""
+
+    def __init__(self, daily_limit: int, redis_url: str) -> None:
+        import redis  # lazy: only needed when AI_BUDGET_REDIS_URL/REDIS_URL is set
+
+        self.daily_limit = daily_limit
+        self._redis = redis.Redis.from_url(redis_url, decode_responses=True)
+
+    @staticmethod
+    def _key(org_id: str) -> str:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return f"ai_budget:{org_id}:{today}"
+
+    def used(self, org_id: str) -> int:
+        value = self._redis.get(self._key(org_id))
+        return int(value) if value else 0
+
+    def check(self, org_id: str) -> None:
+        if self.daily_limit <= 0:
+            return
+        used = self.used(org_id)
+        if used >= self.daily_limit:
+            raise BudgetExceeded(org_id, used, self.daily_limit)
+
+    def consume(self, org_id: str, tokens: int) -> None:
+        if self.daily_limit <= 0:
+            return
+        key = self._key(org_id)
+        pipe = self._redis.pipeline()
+        pipe.incrby(key, tokens)
+        pipe.expire(key, 2 * 86_400)
+        pipe.execute()
+
+
 @dataclass
 class CostControls:
-    budget: TokenBudget
+    budget: TokenBudget | RedisTokenBudget
     cache: ResponseCache
     breaker: CircuitBreaker
 
 
+def _budget_from_env() -> TokenBudget | RedisTokenBudget:
+    daily_limit = int(os.environ.get("AI_DAILY_TOKEN_BUDGET", "0"))
+    redis_url = os.environ.get("AI_BUDGET_REDIS_URL") or os.environ.get("REDIS_URL")
+    if redis_url:
+        try:
+            budget = RedisTokenBudget(daily_limit=daily_limit, redis_url=redis_url)
+            budget.used("startup-probe")  # fail fast if redis is unreachable
+            return budget
+        except Exception:  # noqa: BLE001 - degrade to in-memory rather than crash
+            pass
+    return TokenBudget(daily_limit=daily_limit)
+
+
 def controls_from_env() -> CostControls:
     return CostControls(
-        budget=TokenBudget(daily_limit=int(os.environ.get("AI_DAILY_TOKEN_BUDGET", "0"))),
+        budget=_budget_from_env(),
         cache=ResponseCache(ttl_seconds=int(os.environ.get("AI_CACHE_TTL_SECONDS", "3600"))),
         breaker=CircuitBreaker(
             threshold=int(os.environ.get("AI_BREAKER_THRESHOLD", "5")),

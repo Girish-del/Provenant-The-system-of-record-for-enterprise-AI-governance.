@@ -73,6 +73,23 @@ describe('tenant isolation (RLS)', () => {
   });
 });
 
+describe('organizations hardening (B2)', () => {
+  it('cannot UPDATE another tenant organization from a tenant context', async () => {
+    await expect(
+      forOrg(orgA, (tx) => tx.organization.update({ where: { id: orgB }, data: { name: 'pwned' } })),
+    ).rejects.toThrow();
+    const untouched = await prisma.organization.findUnique({ where: { id: orgB } });
+    expect(untouched?.name).toBe('Org B');
+  });
+
+  it('can still UPDATE its own organization', async () => {
+    const updated = await forOrg(orgA, (tx) =>
+      tx.organization.update({ where: { id: orgA }, data: { name: 'Org A renamed' } }),
+    );
+    expect(updated.name).toBe('Org A renamed');
+  });
+});
+
 describe('audit log: tenant-scoped + append-only', () => {
   it('cannot read another tenant audit rows', async () => {
     const rowA = await forOrg(orgA, (tx) =>

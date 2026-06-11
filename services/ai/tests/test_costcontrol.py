@@ -160,3 +160,23 @@ def test_breaker_opens_and_fast_fails(monkeypatch) -> None:
     third = client.post("/draft", json=DRAFT_BODY)
     assert third.status_code == 503
     assert "Retry-After" in third.headers
+
+
+# --- unit: Redis-backed budget (B10) ---
+
+
+def test_redis_budget_enforces_limit_across_instances(monkeypatch) -> None:
+    import fakeredis
+
+    from app.costcontrol import RedisTokenBudget
+
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr("redis.Redis.from_url", staticmethod(lambda url, **kw: fake))
+
+    a = RedisTokenBudget(daily_limit=100, redis_url="redis://fake")
+    b = RedisTokenBudget(daily_limit=100, redis_url="redis://fake")  # second "replica"
+    a.consume("org1", 60)
+    b.consume("org1", 50)  # shared counter crosses the limit
+    with pytest.raises(BudgetExceeded):
+        a.check("org1")
+    b.check("org2")  # other orgs unaffected

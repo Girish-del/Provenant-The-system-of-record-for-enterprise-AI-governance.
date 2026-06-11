@@ -67,4 +67,13 @@ export class ApprovalsController {
   ): Promise<ApprovalDto[]> {
     return this.service.queue(req.session!.orgId, query.status);
   }
+
+  @Get('use-cases/:useCaseId/workflow')
+  @RequireAction('usecase:view')
+  workflow(
+    @Req() req: RequestWithSession,
+    @Param('useCaseId', ParseUUIDPipe) useCaseId: string,
+  ): Promise<unknown> {
+    return this.service.workflowFor(req.session!.orgId, useCaseId);
+  }
 }

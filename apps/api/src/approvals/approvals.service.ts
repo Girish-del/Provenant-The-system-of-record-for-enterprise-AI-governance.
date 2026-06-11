@@ -53,6 +53,25 @@ export class ApprovalsService {
       const approval = await tx.approval.create({
         data: { orgId, useCaseId, comment: input.comment },
       });
+      // Review routing (B6): record the review as a workflow with SLA-tracked steps.
+      // Approval state stays the single source of truth; tasks add assignability,
+      // due dates, and an exec-visible trail. Temporal is the scale-out path.
+      const slaDays = Number(process.env.REVIEW_SLA_DAYS ?? '5');
+      const dueAt = new Date(Date.now() + slaDays * 86_400_000);
+      await tx.workflow.create({
+        data: {
+          orgId,
+          useCaseId,
+          type: 'use-case-review',
+          status: 'open',
+          tasks: {
+            create: [
+              { orgId, title: 'Compliance review', dueAt },
+              { orgId, title: 'Final approval decision', dueAt },
+            ],
+          },
+        },
+      });
       await audit(tx, {
         orgId,
         actorId,
@@ -114,6 +133,21 @@ export class ApprovalsService {
         before: { decision: 'PENDING', lifecycle: useCase.lifecycle },
         after: { decision: input.decision, lifecycle: target },
       });
+      // Close out the review workflow's open steps with the decision.
+      const workflow = await tx.workflow.findFirst({
+        where: { useCaseId: approval.useCaseId, type: 'use-case-review', status: 'open' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (workflow) {
+        await tx.task.updateMany({
+          where: { workflowId: workflow.id, status: { not: 'DONE' } },
+          data: { status: 'DONE', assigneeId: actorId },
+        });
+        await tx.workflow.update({
+          where: { id: workflow.id },
+          data: { status: input.decision === 'APPROVED' ? 'completed' : 'rejected' },
+        });
+      }
       this.ops.track(orgId, 'approval_decided', { decision: input.decision });
       return toDto(updated);
     });
@@ -126,6 +160,33 @@ export class ApprovalsService {
         orderBy: { createdAt: 'desc' },
       });
       return items.map(toDto);
+    });
+  }
+
+  /** The review workflow (steps, assignees, SLA due dates) for a use case. */
+  workflowFor(orgId: string, useCaseId: string): Promise<unknown> {
+    return forOrg(orgId, async (tx) => {
+      const workflow = await tx.workflow.findFirst({
+        where: { useCaseId, type: 'use-case-review' },
+        orderBy: { createdAt: 'desc' },
+        include: { tasks: { orderBy: { createdAt: 'asc' } } },
+      });
+      if (!workflow) {
+        return null;
+      }
+      return {
+        id: workflow.id,
+        status: workflow.status,
+        createdAt: workflow.createdAt.toISOString(),
+        steps: workflow.tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          assigneeId: t.assigneeId,
+          dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+          overdue: t.status !== 'DONE' && t.dueAt !== null && t.dueAt < new Date(),
+        })),
+      };
     });
   }
 
