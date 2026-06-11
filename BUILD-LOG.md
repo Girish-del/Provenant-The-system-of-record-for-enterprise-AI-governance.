@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M17 PLG assessment complete — **ALL ROADMAP MILESTONES M1–M17 DONE**; next: backlog B1–B10)
+**Last updated:** 2026-06-11 (**BACKLOG B1–B10 COMPLETE** — entire planned scope M1–M17 + B1–B10 done; remaining: deploy + real keys + brand)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -75,31 +75,23 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☑ M17 PLG assessment surface: public /assess funnel (questionnaire → tier + obligations →
   email-capture conversion into a workspace), hard-throttled public API — commit 3173ca4
 
-### Backlog — low priority (after main functionality)
-- ☐ B1 **Google OAuth login + register** (user-requested, LOW priority). Note: WorkOS
-  AuthKit provides Google social login natively, so once 2.3's WorkOS adapter is wired
-  this is mostly configuration. Do after core features work.
-- ☐ B2 Membership-based RLS policy on `organizations` (currently app-layer guarded only).
-- ☐ B3 Convert `rls.sql` into a versioned Prisma migration (currently applied via script).
-- ☐ B4 Automated API integration tests (`apps/api`). Needs vitest + `unplugin-swc` (esbuild/tsx do not
-  emit decorator metadata, which NestJS DI requires) + `@nestjs/testing` + `supertest`. Until then the
-  API is covered by live smoke tests + the pure-logic unit tests in `@aegis/core`. Full E2E is M12.
-- ☐ B5 Wire the core API → AI service: a NestJS endpoint (e.g. `POST /use-cases/:id/ai/draft`) that
-  calls the Python service at `AI_SERVICE_URL` (with `X-Internal-Token`) and returns the draft +
-  provenance to the UI. The AI service (M9) currently runs standalone; nothing in `apps/api` calls it yet.
-- ☐ B6 Workflow/Task tables exist but M8 uses `Approval` directly. Richer routing (multi-step, RACI,
-  SLAs, reminders) is reserved for a later workflow-engine pass (Temporal per the roadmap).
-- ☐ B7 Remaining console screens (`apps/web`): risk-assessment questionnaire UI, controls + evidence
-  management, reports list, policies, settings + **billing/plan page**, org/member admin. Login + dashboard
-  + inventory + use-case detail shipped; these are the next UI slices.
-- ☐ B8 Real Stripe integration: Checkout Session creation + signature-verified webhook
-  (`checkout.session.completed` / `customer.subscription.updated` → sync `Organization.plan`). Needs Stripe
-  test keys + price IDs. Today the plan-change path is the dev-only `POST /billing/dev/set-plan`.
-- ☐ B9 Full OpenTelemetry SDK (api + ai traces/metrics to a collector). M15 shipped the practical seed
-  (X-Request-Id minted/honored/echoed + Sentry tracesSampleRate); the OTel dep tree is heavy, add when
-  there's a collector to ship to.
-- ☐ B10 AI budget persistence: M16 budgets/breaker/cache are in-memory (reset on restart, per-process).
-  Move counters to Redis when the service scales past one replica.
+### Backlog — ALL COMPLETE 2026-06-11 (commits cb71d2b, d36db69, c5a71c4)
+- ☑ B1 Google OAuth via WorkOS: /auth/sso/login + /callback (503 + hint keyless), login button — cb71d2b
+- ☑ B2 organizations RLS: UPDATE/DELETE tenant-scoped (SELECT/INSERT open for login/signup);
+  webhook writes via forOrg; +2 isolation tests — cb71d2b
+- ☑ B3 prisma/migrations (0_init diff + 1_rls); `migrate deploy` verified on scratch DB (14 forced) — cb71d2b
+- ☑ B4 API integration tests: vitest + unplugin-swc (decorator metadata) + @nestjs/testing + supertest;
+  7 tests incl. signed Stripe webhook + AI-proxy 503 mapping; CI env extended — d36db69
+- ☑ B5 api→ai wiring: POST /use-cases/:id/ai/{draft,suggest-controls} (RBAC, X-Internal-Token,
+  X-Org-Id, audit, throttled) + Sand-accented advisory AI panel in the console — cb71d2b, c5a71c4
+- ☑ B6 Review routing on Workflow/Task: submit creates SLA-dated steps (REVIEW_SLA_DAYS), decide
+  completes them; GET /use-cases/:id/workflow + console card w/ overdue flags — cb71d2b, c5a71c4
+- ☑ B7 Console screens: /approvals queue, /reports, /policies, /settings (plan+meter+members),
+  assessment modal, control status + evidence attach, review actions, Google login button — c5a71c4
+- ☑ B8 Stripe: real Checkout Sessions + signature-verified webhook syncing plan (test-key
+  placeholders; mock path keyless); proven via HMAC-signed event in B4 tests — cb71d2b, d36db69
+- ☑ B9 OTel NodeSDK gated on OTEL_EXPORTER_OTLP_ENDPOINT (auto-instrumentations; noop keyless) — cb71d2b
+- ☑ B10 RedisTokenBudget (INCRBY+TTL, cross-replica; REDIS_URL fallback chain; fakeredis test) — cb71d2b
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
@@ -109,6 +101,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-11 — **Backlog B1–B10 complete** (cb71d2b backend, d36db69 tests, c5a71c4 web). Everything
+  runs keyless via placeholders/mocks; real integrations activate by setting env (.env.example documents
+  each). Live-verified: AI draft through the proxy (advisory provenance), SSO+webhook 503 keyless, member
+  invite/role guards, policy versioning, workflow steps open→DONE on decide, org cross-tenant UPDATE
+  blocked (9 db tests), signed webhook applies BUSINESS plan (7 api tests), redis budget cross-replica
+  (18 ai tests), settings screenshot. Gotchas: ESM import hoisting beats inline process.env in vitest →
+  use setupFiles; Stripe webhook needs rawBody:true + its own unauthenticated controller (class guards
+  would 401 Stripe); org-RLS UPDATE policy initially broke the webhook write → run it inside forOrg.
 - 2026-06-10 — **M17 PLG assessment** (3173ca4). Public funnel: `apps/api` `/public/assessment`
   (GET questionnaire 30/min; POST classify 20/min read-only → tier + rationale + obligations from
   the content library; POST convert 3/min → dev-login → workspace + use case + assessment + session
@@ -244,16 +244,14 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**All roadmap milestones (M1–M17) are complete.** Remaining work is the backlog, in rough value order:
-1. **B5** — wire `apps/api` → AI service (`POST /use-cases/:id/ai/draft` proxy w/ X-Internal-Token +
-   X-Org-Id) + console "AI-drafted" UI (Sand-accented, accept/edit/reject per DESIGN.md).
-2. **B7** — remaining console screens: risk-questionnaire UI, controls/evidence management, reports,
-   policies, settings + billing page, member admin.
-3. **B8** — real Stripe checkout + signature-verified webhook (needs test keys + price IDs).
-4. **B1** — Google OAuth via WorkOS (needs WorkOS keys). 5. **B2/B3** — RLS hardening (org-table
-   policy, rls.sql → migration). 6. **B4** — API integration tests. 7. **B6** — richer workflow
-   routing (Temporal). 8. **B9** — OTel. 9. **B10** — Redis-backed AI budgets.
-Also pre-launch: deploy (1.4 Terraform), real domain/brand decision (Aegis is a working title).
+**The entire planned scope is built: M1–M17 + backlog B1–B10.** What remains is going live:
+1. **Provision real keys** (each activates dormant, tested code): Stripe test keys + price IDs +
+   `stripe listen` webhook; WorkOS (Google SSO); ANTHROPIC_API_KEY (real Claude drafting);
+   Sentry/PostHog/Resend; optional OTel collector + INTERNAL_API_TOKEN.
+2. **Deploy** — component 1.4 (Terraform/AWS-ECS per docs/02), domains, EU residency, backups.
+3. **Brand** — pick the real name (Aegis is a working title; prior shortlist: Provenant/Lodestar/Warrant).
+4. **Design partners** — line up 3–5 EU-exposed pilots + a compliance advisor (docs/04 plan).
+Docs: see docs/09 (run-through), docs/10 (pitch), docs/11 (setup), docs/12 (simple explainer).
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
