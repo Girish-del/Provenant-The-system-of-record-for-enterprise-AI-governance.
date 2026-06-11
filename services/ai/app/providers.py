@@ -93,18 +93,30 @@ class MockProvider:
         return _suggest_controls_for_tier(use_case)
 
 
+def resolve_models() -> dict[str, str]:
+    """Model routing: route each task to the cheapest model that does the job.
+    Long-form drafting gets the strong default; structured suggestion gets the
+    fast/cheap tier. Both are env-overridable per task."""
+    base = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-0")
+    return {
+        "draft": os.environ.get("ANTHROPIC_MODEL_DRAFT", base),
+        "suggest": os.environ.get("ANTHROPIC_MODEL_SUGGEST", "claude-haiku-4-5"),
+    }
+
+
 class ClaudeProvider:
     name = "claude"
 
     def __init__(self) -> None:
         import anthropic  # lazy: only required when a key is configured
 
-        self.model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-0")
+        self.models = resolve_models()
+        self.model = self.models["draft"]
         self._client = anthropic.Anthropic()
 
-    def _complete(self, system: str, user: str) -> str:
+    def _complete(self, system: str, user: str, model: str | None = None) -> str:
         message = self._client.messages.create(
-            model=self.model,
+            model=model or self.model,
             max_tokens=1500,
             system=system,
             messages=[{"role": "user", "content": user}],
@@ -126,7 +138,7 @@ class ClaudeProvider:
             f"Risk tier: {use_case.risk_tier}\n"
             f"Description: {use_case.description or 'not specified'}"
         )
-        return self._complete(system, user)
+        return self._complete(system, user, model=self.models["draft"])
 
     def suggest_controls(
         self, use_case: UseCaseInput, framework: str
