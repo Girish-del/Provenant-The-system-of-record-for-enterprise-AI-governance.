@@ -81,10 +81,12 @@ jobs:
           pnpm --filter @aegis/db exec prisma db push --skip-generate --accept-data-loss
           pnpm --filter @aegis/db rls:apply
 
-      - name: Test (incl. tenant-isolation suite)
+      - name: Test (incl. tenant-isolation + API integration suites)
         env:
           # App connects as the non-superuser role so RLS is actually exercised.
           DATABASE_URL: postgresql://aegis_app:aegis_app@localhost:5432/aegis
+          REDIS_URL: redis://localhost:6379
+          SESSION_SECRET: ci-only-insecure-0123456789abcdefghijklmn
         run: pnpm test
 
       - name: Build
