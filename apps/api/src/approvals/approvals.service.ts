@@ -12,6 +12,7 @@ import type {
   ApprovalDto,
 } from '@aegis/contracts';
 import { audit } from '../common/audit.js';
+import { OpsService } from '../ops/ops.service.js';
 
 function toDto(a: Approval): ApprovalDto {
   return {
@@ -27,6 +28,8 @@ function toDto(a: Approval): ApprovalDto {
 
 @Injectable()
 export class ApprovalsService {
+  constructor(private readonly ops: OpsService) {}
+
   submitForReview(
     orgId: string,
     actorId: string,
@@ -111,6 +114,7 @@ export class ApprovalsService {
         before: { decision: 'PENDING', lifecycle: useCase.lifecycle },
         after: { decision: input.decision, lifecycle: target },
       });
+      this.ops.track(orgId, 'approval_decided', { decision: input.decision });
       return toDto(updated);
     });
   }

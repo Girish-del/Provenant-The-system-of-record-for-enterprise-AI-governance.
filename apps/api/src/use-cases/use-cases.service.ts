@@ -17,9 +17,12 @@ import {
 import type { CreateUseCaseInput, UpdateUseCaseInput, ListUseCasesQuery } from '@aegis/contracts';
 import { audit } from '../common/audit.js';
 import { parseUseCaseCsv } from './csv.js';
+import { OpsService } from '../ops/ops.service.js';
 
 @Injectable()
 export class UseCasesService {
+  constructor(private readonly ops: OpsService) {}
+
   list(orgId: string, query: ListUseCasesQuery): Promise<UseCase[]> {
     return forOrg(orgId, (tx) =>
       tx.useCase.findMany({
@@ -74,6 +77,7 @@ export class UseCasesService {
         targetId: useCase.id,
         after: useCase,
       });
+      this.ops.track(orgId, 'system_registered', { useCaseId: useCase.id });
       return useCase;
     });
   }
