@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (M15 platform ops + M16 AI cost controls complete; next: M17 PLG assessment)
+**Last updated:** 2026-06-10 (M17 PLG assessment complete — **ALL ROADMAP MILESTONES M1–M17 DONE**; next: backlog B1–B10)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -72,7 +72,8 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   global exception filter — commit bc2cf56. (Full OTel SDK deferred → backlog B9.)
 - ☑ M16 AI cost controls: per-org token budgets (429), response cache (X-Cache), circuit breaker
   (fast 503), per-task model routing — commit 86a0732
-- ☐ M17 PLG assessment surface (low-friction funnel)
+- ☑ M17 PLG assessment surface: public /assess funnel (questionnaire → tier + obligations →
+  email-capture conversion into a workspace), hard-throttled public API — commit 3173ca4
 
 ### Backlog — low priority (after main functionality)
 - ☐ B1 **Google OAuth login + register** (user-requested, LOW priority). Note: WorkOS
@@ -108,6 +109,12 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M17 PLG assessment** (3173ca4). Public funnel: `apps/api` `/public/assessment`
+  (GET questionnaire 30/min; POST classify 20/min read-only → tier + rationale + obligations from
+  the content library; POST convert 3/min → dev-login → workspace + use case + assessment + session
+  cookie) + `apps/web` `/assess` (progress bar, Yes/No cards, result w/ risk badge + obligations grid,
+  Sand conversion box, redirect into console). Live: 4/4 tier paths, conversion → riskTier=HIGH use
+  case in a logged-in workspace, 4th convert/min → 429, E2E 3/3, screenshots. **All M1–M17 done.**
 - 2026-06-10 — **M15 platform ops** (bc2cf56) + **M16 AI cost controls** (86a0732). M15: `OpsService`
   facade (Sentry captureError / PostHog track / Resend sendEmail), each active only when its env key is
   set — boots `sentry=noop posthog=noop resend=noop` keyless; global `AllExceptionsFilter` (4xx pass
@@ -237,17 +244,16 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M17 — PLG assessment surface.** The free "EU AI Act Readiness Assessment" funnel (docs/04 GTM):
-a public, low-friction flow — answer the risk questionnaire → instant tier + obligations + gap
-preview → email capture → convert into a full workspace. Build as public routes in `apps/web`
-(`/assess`) + an unauthenticated, rate-limited API path that reuses `classifyRisk` and the content
-library (no DB writes until conversion; then create org + use case + assessment via existing flows).
-Verify: assessment renders tier + rationale for each tier path; conversion creates the workspace;
-throttled hard (it is a public endpoint).
-
-After M17: backlog — B5 (api→ai wiring + console AI-draft UI), B7 (remaining console screens incl.
-billing page), B8 (real Stripe), B1 (Google OAuth via WorkOS), B2/B3 (RLS hardening), B9 (OTel),
-B10 (Redis-backed AI budgets).
+**All roadmap milestones (M1–M17) are complete.** Remaining work is the backlog, in rough value order:
+1. **B5** — wire `apps/api` → AI service (`POST /use-cases/:id/ai/draft` proxy w/ X-Internal-Token +
+   X-Org-Id) + console "AI-drafted" UI (Sand-accented, accept/edit/reject per DESIGN.md).
+2. **B7** — remaining console screens: risk-questionnaire UI, controls/evidence management, reports,
+   policies, settings + billing page, member admin.
+3. **B8** — real Stripe checkout + signature-verified webhook (needs test keys + price IDs).
+4. **B1** — Google OAuth via WorkOS (needs WorkOS keys). 5. **B2/B3** — RLS hardening (org-table
+   policy, rls.sql → migration). 6. **B4** — API integration tests. 7. **B6** — richer workflow
+   routing (Temporal). 8. **B9** — OTel. 9. **B10** — Redis-backed AI budgets.
+Also pre-launch: deploy (1.4 Terraform), real domain/brand decision (Aegis is a working title).
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
