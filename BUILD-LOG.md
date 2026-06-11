@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-10 (Web console + M14 billing complete; next: M15 platform ops)
+**Last updated:** 2026-06-10 (M15 platform ops + M16 AI cost controls complete; next: M17 PLG assessment)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -68,8 +68,10 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 ### M14–M17 — Production / commercial scope
 - ☑ M14 Billing: plan tiers + usage metering (governed AI systems) + 402 cap enforcement; Stripe-ready
   (mock provider without keys) — commit 56b841a
-- ☐ M15 Platform ops: Sentry + PostHog (analytics + flags) + OTel + Resend email
-- ☐ M16 AI cost controls: model routing, prompt caching, per-tenant budgets, circuit breaker
+- ☑ M15 Platform ops: Sentry + PostHog + Resend (all no-op keyless) + request-id propagation +
+  global exception filter — commit bc2cf56. (Full OTel SDK deferred → backlog B9.)
+- ☑ M16 AI cost controls: per-org token budgets (429), response cache (X-Cache), circuit breaker
+  (fast 503), per-task model routing — commit 86a0732
 - ☐ M17 PLG assessment surface (low-friction funnel)
 
 ### Backlog — low priority (after main functionality)
@@ -92,6 +94,11 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 - ☐ B8 Real Stripe integration: Checkout Session creation + signature-verified webhook
   (`checkout.session.completed` / `customer.subscription.updated` → sync `Organization.plan`). Needs Stripe
   test keys + price IDs. Today the plan-change path is the dev-only `POST /billing/dev/set-plan`.
+- ☐ B9 Full OpenTelemetry SDK (api + ai traces/metrics to a collector). M15 shipped the practical seed
+  (X-Request-Id minted/honored/echoed + Sentry tracesSampleRate); the OTel dep tree is heavy, add when
+  there's a collector to ship to.
+- ☐ B10 AI budget persistence: M16 budgets/breaker/cache are in-memory (reset on restart, per-process).
+  Move counters to Redis when the service scales past one replica.
 
 ## Decisions log (append-only)
 | Date | Decision | Why |
@@ -101,6 +108,17 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-10 — **M15 platform ops** (bc2cf56) + **M16 AI cost controls** (86a0732). M15: `OpsService`
+  facade (Sentry captureError / PostHog track / Resend sendEmail), each active only when its env key is
+  set — boots `sentry=noop posthog=noop resend=noop` keyless; global `AllExceptionsFilter` (4xx pass
+  through, unexpected → Sentry + sanitized 500 w/ request id); `X-Request-Id` middleware (mint/honor/echo);
+  product events `system_registered`, `approval_decided`. Verified keyless + E2E 3/3. Gotcha: E2E reuses a
+  server already on :3001 — booting it without S3 env made evidence upload fail; kill stray servers first.
+  M16 (`services/ai`): `costcontrol.py` — TokenBudget (per-org/UTC-day, 429+Retry-After; 0=unlimited),
+  ResponseCache (TTL+LRU, org|endpoint|canonical-request key, X-Cache header), CircuitBreaker (N failures
+  → fast 503, half-open probe); guarded flow breaker→cache→budget→provider on both endpoints; model
+  routing draft=sonnet / suggest=haiku (env-overridable). 17 pytest; live smoke: miss→hit, no second
+  provenance line on the hit (provider truly skipped).
 - 2026-06-10 — **M14 billing** (56b841a). `@aegis/core`: PLANS (Free 3 / Team 25 / Business 100 /
   Enterprise unlimited), `meter()`, `canRegisterSystem()` — 6 unit tests. Schema: `Organization.plan`
   (PlanTier) + stripe customer/subscription ids + `subscriptionStatus`. `apps/api` billing: GET /billing
@@ -219,14 +237,17 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
   created, BUILD-LOG + project CLAUDE.md + git initialized.
 
 ## Next up
-**M15 — Platform ops.** Error tracking (Sentry), product analytics + feature flags (PostHog),
-transactional email (Resend), OpenTelemetry tracing across api + ai. CREDENTIAL WALLS (Sentry DSN,
-PostHog key, Resend key) — wire via env with a **no-op fallback** so dev/CI run without them (same mock
-pattern as dev-auth / AI-mock / billing-mock). Verify: boots with keys unset (no-op) + a check that the
-wrappers degrade gracefully.
+**M17 — PLG assessment surface.** The free "EU AI Act Readiness Assessment" funnel (docs/04 GTM):
+a public, low-friction flow — answer the risk questionnaire → instant tier + obligations + gap
+preview → email capture → convert into a full workspace. Build as public routes in `apps/web`
+(`/assess`) + an unauthenticated, rate-limited API path that reuses `classifyRisk` and the content
+library (no DB writes until conversion; then create org + use case + assessment via existing flows).
+Verify: assessment renders tier + rationale for each tier path; conversion creates the workspace;
+throttled hard (it is a public endpoint).
 
-Then M16 (AI cost controls) and M17 (PLG assessment surface). Also pending: B7 (remaining UI screens,
-incl. a billing/settings page) and B8 (real Stripe checkout + webhook).
+After M17: backlog — B5 (api→ai wiring + console AI-draft UI), B7 (remaining console screens incl.
+billing page), B8 (real Stripe), B1 (Google OAuth via WorkOS), B2/B3 (RLS hardening), B9 (OTel),
+B10 (Redis-backed AI budgets).
 
 **Stack now running:** Postgres + LocalStack (S3) via `docker compose`. Evidence upload needs the
 S3 env vars at boot (S3_ENDPOINT/keys/bucket) — see the boot line below.
