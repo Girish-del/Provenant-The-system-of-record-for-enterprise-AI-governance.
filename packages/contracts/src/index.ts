@@ -5,4 +5,5 @@ export * from './control-mappings';
 export * from './readiness';
 export * from './reports';
 export * from './billing';
+export * from './public-assessment';
 export * from './approvals';
