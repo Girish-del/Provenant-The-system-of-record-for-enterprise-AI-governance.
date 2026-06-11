@@ -1,20 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, ListChecks, Paperclip, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RiskBadge, StatusBadge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
-import type { Approval, ControlMapping, UseCase, UseCaseReadiness } from '@/lib/types';
+import type {
+  Approval,
+  ControlMapping,
+  ReviewWorkflow,
+  UseCase,
+  UseCaseReadiness,
+} from '@/lib/types';
+import { AssessmentModal } from './assessment-modal';
+import { AiDraftPanel } from './ai-draft-panel';
 
-const STATUS_LABEL: Record<string, string> = {
-  IMPLEMENTED: 'Implemented',
-  IN_PROGRESS: 'In progress',
-  NOT_STARTED: 'Not started',
-  NOT_APPLICABLE: 'Not applicable',
-};
+const CONTROL_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'IMPLEMENTED', 'NOT_APPLICABLE'];
 
 export default function UseCaseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,14 +25,21 @@ export default function UseCaseDetailPage() {
   const [readiness, setReadiness] = useState<UseCaseReadiness | null>(null);
   const [controls, setControls] = useState<ControlMapping[] | null>(null);
   const [approvals, setApprovals] = useState<Approval[] | null>(null);
+  const [workflow, setWorkflow] = useState<ReviewWorkflow | null>(null);
+  const [assessing, setAssessing] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const fileFor = useRef<string | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return;
     api.useCase(id).then(setUc).catch(() => undefined);
     api.useCaseReadiness(id).then(setReadiness).catch(() => undefined);
     api.controls(id).then(setControls).catch(() => undefined);
     api.approvals(id).then(setApprovals).catch(() => undefined);
+    api.workflow(id).then(setWorkflow).catch(() => undefined);
   }, [id]);
+  useEffect(load, [load]);
 
   if (!uc) {
     return <div className="mx-auto max-w-6xl text-sm text-muted">Loading…</div>;
@@ -37,9 +47,34 @@ export default function UseCaseDetailPage() {
 
   const pct = readiness?.summary.readinessPct ?? 0;
   const accent = pct === 100 ? '#3f7d58' : '#255c99';
+  const pendingApproval = approvals?.find((a) => a.decision === 'PENDING');
+
+  async function run(label: string, fn: () => Promise<unknown>) {
+    setBusy(label);
+    try {
+      await fn();
+      load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function pickEvidence(mappingId: string) {
+    fileFor.current = mappingId;
+    fileInput.current?.click();
+  }
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const mappingId = fileFor.current;
+    e.target.value = '';
+    if (!file || !mappingId) return;
+    await run('evidence', () => api.uploadEvidence(mappingId, file));
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
+      <input ref={fileInput} type="file" className="hidden" onChange={onFile} />
       <Link
         href="/inventory"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
@@ -60,11 +95,41 @@ export default function UseCaseDetailPage() {
             </span>
           </div>
         </div>
-        <a href={api.reportUrl(uc.id)} target="_blank" rel="noreferrer">
-          <Button variant="secondary">
-            <Download size={16} /> Export readiness report
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setAssessing(true)}>
+            <ShieldAlert size={16} /> {uc.riskTier === 'UNASSIGNED' ? 'Assess risk' : 'Re-assess'}
           </Button>
-        </a>
+          {uc.lifecycle === 'PROPOSED' ? (
+            <Button
+              disabled={busy === 'submit'}
+              onClick={() => run('submit', () => api.submitForReview(uc.id))}
+            >
+              Submit for review
+            </Button>
+          ) : null}
+          {pendingApproval ? (
+            <>
+              <Button
+                disabled={busy === 'approve'}
+                onClick={() => run('approve', () => api.decide(pendingApproval.id, 'APPROVED'))}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busy === 'reject'}
+                onClick={() => run('reject', () => api.decide(pendingApproval.id, 'REJECTED'))}
+              >
+                Reject
+              </Button>
+            </>
+          ) : null}
+          <a href={api.reportUrl(uc.id)} target="_blank" rel="noreferrer">
+            <Button variant="secondary">
+              <Download size={16} /> Report
+            </Button>
+          </a>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -75,10 +140,6 @@ export default function UseCaseDetailPage() {
               <div className="col-span-2">
                 <dt className="text-xs text-faint">Purpose</dt>
                 <dd className="mt-0.5">{uc.purpose ?? '—'}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-xs text-faint">Description</dt>
-                <dd className="mt-0.5">{uc.description ?? '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-faint">Registered</dt>
@@ -91,13 +152,23 @@ export default function UseCaseDetailPage() {
             </dl>
           </div>
 
+          <AiDraftPanel useCaseId={uc.id} useCaseName={uc.name} />
+
           <div className="card overflow-hidden">
-            <div className="border-b border-border px-5 py-3.5 text-sm font-medium">Mapped controls</div>
-            {!controls ? (
-              <div className="px-5 py-8 text-center text-sm text-muted">Loading…</div>
-            ) : controls.length === 0 ? (
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+              <span className="text-sm font-medium">Controls</span>
+              <Button
+                variant="secondary"
+                className="px-3 py-1.5 text-xs"
+                disabled={busy === 'suggest'}
+                onClick={() => run('suggest', () => api.suggestControls(uc.id))}
+              >
+                <ListChecks size={14} /> Suggest required controls
+              </Button>
+            </div>
+            {!controls || controls.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-muted">
-                No controls mapped yet. Run a risk assessment to suggest the required controls.
+                No controls mapped yet. Assess the risk, then suggest the required controls.
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -118,9 +189,29 @@ export default function UseCaseDetailPage() {
                         <div className="text-xs text-muted">{c.control.title}</div>
                       </td>
                       <td className="px-5 py-3">
-                        <StatusBadge status={c.status} />
+                        <select
+                          value={c.status}
+                          onChange={(e) =>
+                            run('status', () => api.updateControlStatus(uc.id, c.id, e.target.value))
+                          }
+                          className="focus-ring rounded-md border border-border bg-canvas px-2 py-1 text-xs outline-none"
+                        >
+                          {CONTROL_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s.replace('_', ' ').toLowerCase()}
+                            </option>
+                          ))}
+                        </select>
                       </td>
-                      <td className="tnum px-5 py-3 text-muted">{c.evidenceCount}</td>
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={() => pickEvidence(c.id)}
+                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <Paperclip size={13} />
+                          <span className="tnum">{c.evidenceCount}</span> · attach
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -171,45 +262,52 @@ export default function UseCaseDetailPage() {
                 style={{ width: `${pct}%`, backgroundColor: accent }}
               />
             </div>
-            {readiness ? (
-              <div className="mt-4 space-y-1.5 text-sm">
-                {(['IMPLEMENTED', 'IN_PROGRESS', 'NOT_STARTED', 'NOT_APPLICABLE'] as const).map((s) => (
-                  <div key={s} className="flex items-center justify-between">
-                    <span className="text-muted">{STATUS_LABEL[s]}</span>
-                    <span className="tnum font-medium">{readiness.summary.byStatus[s] ?? 0}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
           </div>
 
-          <div className="card p-5">
-            <div className="text-sm font-medium">Review &amp; approvals</div>
-            {!approvals ? (
-              <div className="mt-3 text-sm text-muted">Loading…</div>
-            ) : approvals.length === 0 ? (
-              <div className="mt-3 text-sm text-muted">Not yet submitted for review.</div>
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {approvals.map((a) => (
-                  <li key={a.id} className="flex items-start gap-2.5">
+          {workflow ? (
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Review workflow</span>
+                <span className="text-xs text-faint">{workflow.status}</span>
+              </div>
+              <ul className="mt-3 space-y-2.5">
+                {workflow.steps.map((s) => (
+                  <li key={s.id} className="flex items-start gap-2.5 text-sm">
                     <span
                       className="mt-1 h-2 w-2 shrink-0 rounded-full"
                       style={{
                         backgroundColor:
-                          a.decision === 'APPROVED'
-                            ? '#3f7d58'
-                            : a.decision === 'REJECTED'
-                              ? '#b3001b'
-                              : '#7ea3cc',
+                          s.status === 'DONE' ? '#3f7d58' : s.overdue ? '#b3001b' : '#7ea3cc',
                       }}
                     />
-                    <div className="text-sm">
-                      <StatusBadge status={a.decision} />
-                      {a.comment ? <div className="mt-1 text-muted">{a.comment}</div> : null}
-                      <div className="mt-0.5 text-xs text-faint">
-                        {a.decidedAt ? new Date(a.decidedAt).toLocaleDateString() : 'pending'}
+                    <div>
+                      <div>{s.title}</div>
+                      <div className="text-xs text-faint">
+                        {s.status === 'DONE'
+                          ? 'done'
+                          : s.dueAt
+                            ? `due ${new Date(s.dueAt).toLocaleDateString()}${s.overdue ? ' · overdue' : ''}`
+                            : 'open'}
                       </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="card p-5">
+            <div className="text-sm font-medium">Approvals</div>
+            {!approvals || approvals.length === 0 ? (
+              <div className="mt-3 text-sm text-muted">Not yet submitted for review.</div>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {approvals.map((a) => (
+                  <li key={a.id} className="text-sm">
+                    <StatusBadge status={a.decision} />
+                    {a.comment ? <div className="mt-1 text-muted">{a.comment}</div> : null}
+                    <div className="mt-0.5 text-xs text-faint">
+                      {a.decidedAt ? new Date(a.decidedAt).toLocaleDateString() : 'pending'}
                     </div>
                   </li>
                 ))}
@@ -218,6 +316,17 @@ export default function UseCaseDetailPage() {
           </div>
         </div>
       </div>
+
+      {assessing ? (
+        <AssessmentModal
+          useCaseId={uc.id}
+          onClose={() => setAssessing(false)}
+          onDone={() => {
+            setAssessing(false);
+            load();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

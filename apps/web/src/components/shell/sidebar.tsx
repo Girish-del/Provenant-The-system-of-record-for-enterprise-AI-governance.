@@ -5,10 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Boxes,
-  ShieldAlert,
-  ListChecks,
-  FileText,
-  GitBranch,
+  CheckSquare,
   BarChart3,
   ScrollText,
   Settings2,
@@ -20,16 +17,10 @@ import { cn } from '@/lib/cn';
 const NAV: { label: string; href: string; icon: LucideIcon }[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'AI Inventory', href: '/inventory', icon: Boxes },
-];
-
-const MODULES: { label: string; icon: LucideIcon }[] = [
-  { label: 'Risk Assessments', icon: ShieldAlert },
-  { label: 'Controls', icon: ListChecks },
-  { label: 'Evidence', icon: FileText },
-  { label: 'Workflows', icon: GitBranch },
-  { label: 'Reports', icon: BarChart3 },
-  { label: 'Policies', icon: ScrollText },
-  { label: 'Settings', icon: Settings2 },
+  { label: 'Approvals', href: '/approvals', icon: CheckSquare },
+  { label: 'Reports', href: '/reports', icon: BarChart3 },
+  { label: 'Policies', href: '/policies', icon: ScrollText },
+  { label: 'Settings', href: '/settings', icon: Settings2 },
 ];
 
 export function Sidebar() {
@@ -64,25 +55,6 @@ export function Sidebar() {
               <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
               {item.label}
             </Link>
-          );
-        })}
-
-        <div className="mb-1 mt-5 px-3 text-[11px] font-medium uppercase tracking-wide text-faint">
-          Modules
-        </div>
-        {MODULES.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className="mb-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-faint"
-            >
-              <Icon size={17} strokeWidth={1.8} />
-              <span>{item.label}</span>
-              <span className="ml-auto rounded-sm bg-canvas px-1.5 py-0.5 text-[10px] font-medium">
-                Soon
-              </span>
-            </div>
           );
         })}
       </nav>
