@@ -56,7 +56,10 @@ export class ApprovalsService {
       // Review routing (B6): record the review as a workflow with SLA-tracked steps.
       // Approval state stays the single source of truth; tasks add assignability,
       // due dates, and an exec-visible trail. Temporal is the scale-out path.
-      const slaDays = Number(process.env.REVIEW_SLA_DAYS ?? '5');
+      // Default 5 business-ish days. Guard against an empty/invalid env value
+      // (`Number('')` is 0, which would make every step instantly overdue).
+      const parsedSla = Number(process.env.REVIEW_SLA_DAYS);
+      const slaDays = Number.isFinite(parsedSla) && parsedSla > 0 ? parsedSla : 5;
       const dueAt = new Date(Date.now() + slaDays * 86_400_000);
       await tx.workflow.create({
         data: {

@@ -1,0 +1,9 @@
+{
+  "name": "@aegis/ai-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace wrapper so `pnpm dev` (turbo) also boots the Python AI service via uv. Tests stay under uv directly (CI runs them in their own step).",
+  "scripts": {
+    "dev": "uv run uvicorn app.main:app --port 8000 --reload"
+  }
+}

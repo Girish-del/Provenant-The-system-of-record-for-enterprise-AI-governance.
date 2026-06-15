@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timezone
 from typing import Protocol
 
+from .env import env_str
 from .schemas import ControlSuggestion, Provenance, UseCaseInput
 
 logger = logging.getLogger("aegis.ai")
@@ -97,10 +98,10 @@ def resolve_models() -> dict[str, str]:
     """Model routing: route each task to the cheapest model that does the job.
     Long-form drafting gets the strong default; structured suggestion gets the
     fast/cheap tier. Both are env-overridable per task."""
-    base = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-0")
+    base = env_str("ANTHROPIC_MODEL", "claude-sonnet-4-0")
     return {
-        "draft": os.environ.get("ANTHROPIC_MODEL_DRAFT", base),
-        "suggest": os.environ.get("ANTHROPIC_MODEL_SUGGEST", "claude-haiku-4-5"),
+        "draft": env_str("ANTHROPIC_MODEL_DRAFT", base),
+        "suggest": env_str("ANTHROPIC_MODEL_SUGGEST", "claude-haiku-4-5"),
     }
 
 

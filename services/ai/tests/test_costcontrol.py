@@ -97,6 +97,38 @@ def test_model_routing_defaults_and_overrides(monkeypatch) -> None:
     assert models["suggest"] == "claude-sonnet-4-6"
 
 
+# --- unit: empty-string env tolerance (dev .env keyless placeholders) ---
+
+
+def test_empty_string_env_vars_fall_back_to_defaults(monkeypatch) -> None:
+    """The dev .env ships keyless placeholders like `AI_CACHE_TTL_SECONDS=`. A
+    present-but-empty value must fall back to the default, not crash on int('')."""
+    from app.costcontrol import controls_from_env
+
+    for name in (
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_MODEL_DRAFT",
+        "ANTHROPIC_MODEL_SUGGEST",
+        "AI_DAILY_TOKEN_BUDGET",
+        "AI_CACHE_TTL_SECONDS",
+        "AI_BREAKER_THRESHOLD",
+        "AI_BREAKER_COOLDOWN_SECONDS",
+        "AI_BUDGET_REDIS_URL",
+    ):
+        monkeypatch.setenv(name, "")
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
+    controls = controls_from_env()  # must not raise on int("") / float("")
+    assert controls.cache.ttl_seconds == 3600
+    assert controls.breaker.threshold == 5
+    assert controls.breaker.cooldown_seconds == 60.0
+    assert controls.budget.daily_limit == 0
+
+    models = resolve_models()
+    assert models["draft"] == "claude-sonnet-4-0"
+    assert models["suggest"] == "claude-haiku-4-5"
+
+
 # --- API: cache ---
 
 

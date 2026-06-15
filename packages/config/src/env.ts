@@ -55,9 +55,18 @@ export type Env = z.infer<typeof envSchema>;
 /**
  * Parse and validate environment variables. Throws a readable error listing
  * every problem, so a misconfigured deploy fails at boot instead of at runtime.
+ * Empty strings are treated as unset: `.env` files commonly keep placeholder
+ * lines like `STRIPE_SECRET_KEY=`, which load as `""` and would otherwise fail
+ * `.url()`/`.min()` validators or sneak past truthy feature gates.
  */
 export function parseEnv(raw: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = envSchema.safeParse(raw);
+  const cleaned: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (value !== undefined && value !== '') {
+      cleaned[key] = value;
+    }
+  }
+  const parsed = envSchema.safeParse(cleaned);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)

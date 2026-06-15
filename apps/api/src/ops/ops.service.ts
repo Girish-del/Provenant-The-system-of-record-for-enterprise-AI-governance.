@@ -26,7 +26,8 @@ export class OpsService implements OnApplicationShutdown {
     }
     this.posthog = process.env.POSTHOG_KEY
       ? new PostHog(process.env.POSTHOG_KEY, {
-          host: process.env.POSTHOG_HOST ?? 'https://eu.posthog.com',
+          // `||` (not `??`) so an empty `POSTHOG_HOST=` in .env falls back too.
+          host: process.env.POSTHOG_HOST || 'https://eu.posthog.com',
         })
       : null;
     this.resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -58,7 +59,7 @@ export class OpsService implements OnApplicationShutdown {
       this.logger.log(`[email noop] to=${to} subject="${subject}"`);
       return;
     }
-    const from = process.env.EMAIL_FROM ?? 'Aegis <noreply@aegis.dev>';
+    const from = process.env.EMAIL_FROM || 'Aegis <noreply@aegis.dev>';
     await this.resend.emails.send({ from, to, subject, html });
   }
 

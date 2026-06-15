@@ -44,3 +44,6 @@ npm-debug.log*
 # Local design artifacts (keep DESIGN.md + design-preview.html; ignore scratch)
 /tmp-design/
 .gstack/
+
+# Browser/QA scratch (gstack browse cookie jar — may contain session cookies)
+cookies.txt

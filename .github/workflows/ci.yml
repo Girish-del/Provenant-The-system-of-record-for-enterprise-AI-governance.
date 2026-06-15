@@ -61,6 +61,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # db scripts load ../../.env via dotenv-cli; give CI an empty one so the
+      # flag never points at a missing file (CI env vars still take precedence).
+      - name: Create empty .env for dotenv-cli
+        run: touch .env
+
       - name: Dependency audit (advisory)
         continue-on-error: true
         run: pnpm audit --audit-level high

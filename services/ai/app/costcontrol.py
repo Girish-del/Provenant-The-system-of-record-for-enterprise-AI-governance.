@@ -13,6 +13,8 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from .env import env_float, env_int
+
 
 def estimate_tokens(text: str) -> int:
     """Cheap, provider-agnostic estimate (~4 chars/token) plus prompt overhead."""
@@ -175,7 +177,7 @@ class CostControls:
 
 
 def _budget_from_env() -> TokenBudget | RedisTokenBudget:
-    daily_limit = int(os.environ.get("AI_DAILY_TOKEN_BUDGET", "0"))
+    daily_limit = env_int("AI_DAILY_TOKEN_BUDGET", 0)
     redis_url = os.environ.get("AI_BUDGET_REDIS_URL") or os.environ.get("REDIS_URL")
     if redis_url:
         try:
@@ -190,9 +192,9 @@ def _budget_from_env() -> TokenBudget | RedisTokenBudget:
 def controls_from_env() -> CostControls:
     return CostControls(
         budget=_budget_from_env(),
-        cache=ResponseCache(ttl_seconds=int(os.environ.get("AI_CACHE_TTL_SECONDS", "3600"))),
+        cache=ResponseCache(ttl_seconds=env_int("AI_CACHE_TTL_SECONDS", 3600)),
         breaker=CircuitBreaker(
-            threshold=int(os.environ.get("AI_BREAKER_THRESHOLD", "5")),
-            cooldown_seconds=float(os.environ.get("AI_BREAKER_COOLDOWN_SECONDS", "60")),
+            threshold=env_int("AI_BREAKER_THRESHOLD", 5),
+            cooldown_seconds=env_float("AI_BREAKER_COOLDOWN_SECONDS", 60.0),
         ),
     )

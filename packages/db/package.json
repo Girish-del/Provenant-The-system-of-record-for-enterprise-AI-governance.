@@ -14,13 +14,13 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "db:push": "prisma db push --skip-generate",
-    "rls:apply": "node scripts/apply-rls.mjs",
-    "db:setup": "prisma db push && node scripts/apply-rls.mjs",
-    "db:seed": "tsx src/seed.ts",
-    "test": "vitest run",
+    "migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:push": "dotenv -e ../../.env -- prisma db push --skip-generate",
+    "rls:apply": "dotenv -e ../../.env -- node scripts/apply-rls.mjs",
+    "db:setup": "pnpm run db:push && pnpm run rls:apply",
+    "db:seed": "dotenv -e ../../.env -- tsx --import ./scripts/seed-env.mjs src/seed.ts",
+    "test": "dotenv -e ../../.env -- vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -36,6 +36,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "dotenv-cli": "^8.0.0"
   }
 }
