@@ -47,3 +47,6 @@ npm-debug.log*
 
 # Browser/QA scratch (gstack browse cookie jar — may contain session cookies)
 cookies.txt
+
+# Live session handoff (local continuity scratch; BUILD-LOG.md is the committed resume point)
+SESSION-HANDOFF.md
