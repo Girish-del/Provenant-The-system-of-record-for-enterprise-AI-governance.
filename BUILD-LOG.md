@@ -5,7 +5,7 @@
 > Build cadence: **sequential, one component at a time**, each = its own git commit.
 > Update this file at the end of every component (status + log entry).
 
-**Last updated:** 2026-06-11 (**BACKLOG B1–B10 COMPLETE** — entire planned scope M1–M17 + B1–B10 done; remaining: deploy + real keys + brand)
+**Last updated:** 2026-06-15 (**DEV-MODE HARDENING** — keyless `pnpm dev` now boots & runs every feature; full gate green + live-verified. Planned scope M1–M17 + B1–B10 already done; remaining: deploy + real keys + brand)
 **Stack (locked):** TS monorepo — Turborepo+pnpm · Next.js (App Router) · NestJS+ts-rest ·
 Postgres 16+Prisma+RLS · Python FastAPI AI svc · WorkOS · BullMQ→Temporal · pgvector ·
 Stripe · Resend · Sentry · PostHog. Full rationale: `docs/02` + `docs/07`.
@@ -101,6 +101,28 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
 
 ## Detailed log (newest first)
 <!-- Append one entry per completed component: what shipped, key files, decisions, gotchas -->
+- 2026-06-15 — **Dev-mode hardening** (0b550f8 fixes, 42dd440 docs). Made the documented keyless dev
+  flow actually boot and run every feature. Root-cause family: the dev `.env` ships empty-string
+  placeholders and several call sites treated `""` as a real value. Fixes: (1) `packages/config` parseEnv()
+  strips empty-string vars before Zod, so blanks fall back to defaults instead of failing `.url()/.min()`;
+  (2) `apps/api` gained a real `dev` script (tsc watch + `node --watch --env-file-if-exists`), guarded
+  `REVIEW_SLA_DAYS` (`Number('')===0` had made review steps instantly overdue) with a `>0` finite check
+  defaulting to 5, and ops `POSTHOG_HOST`/`EMAIL_FROM` now use `||`; (3) `services/ai` got a workspace
+  `package.json` so turbo boots uvicorn under `pnpm dev`, plus `app/env.py` (env_int/env_float/env_str)
+  that treats blank as unset — fixes `int('')`/`float('')` crash in cost-control setup and empty model
+  names in providers (+ regression test); (4) `packages/db` scripts wrapped in `dotenv-cli`, and
+  `scripts/seed-env.mjs` maps DATABASE_URL→DIRECT_URL so the seed writes global content as the owner role
+  (aegis_app is correctly RLS-denied there); (5) CI creates an empty `.env` for dotenv-cli; gitignore the
+  gstack browse cookie jar. Verified LIVE in dev: web 3000 + api 3001 + ai 8000 all boot under `pnpm dev`;
+  login/cross-port cookie, dashboard, inventory register→detail, AI draft end-to-end (web→api→python,
+  advisory provenance), AI cold-boot keyless (provider=mock), graceful 503 when AI is down. Gate green:
+  typecheck 11/11, build 7/7, tests core 45 / db 9 / api 7 / e2e 3 / ai 19. Gotchas: under `pnpm dev`
+  (turbo) the Python process does NOT inherit the root `.env`, so the `int('')` crash was latent — hardened
+  anyway since the system is empty-string-tolerant everywhere else and a dev loading `.env` into uvicorn
+  would hit it. React controlled inputs ignore a raw DOM `.value` set / Playwright `fill` here — only real
+  keystroke `type` fires onChange (so "Create disabled" was a test-harness artifact, not an app bug). A
+  multi-agent audit workflow was attempted but its subagents hit the session limit; this pass was completed
+  by direct investigation + the full gate. Docs (42dd440): runthrough / pitch / setup / plain-language.
 - 2026-06-11 — **Backlog B1–B10 complete** (cb71d2b backend, d36db69 tests, c5a71c4 web). Everything
   runs keyless via placeholders/mocks; real integrations activate by setting env (.env.example documents
   each). Live-verified: AI draft through the proxy (advisory provenance), SSO+webhook 503 keyless, member
