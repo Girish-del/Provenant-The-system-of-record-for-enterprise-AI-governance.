@@ -50,3 +50,6 @@ cookies.txt
 
 # Live session handoff (local continuity scratch; BUILD-LOG.md is the committed resume point)
 SESSION-HANDOFF.md
+
+# Claude Code personal/local settings (permission allowlists etc.) — keep settings.json committed
+.claude/settings.local.json
