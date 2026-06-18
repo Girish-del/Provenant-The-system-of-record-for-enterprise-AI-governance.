@@ -1,0 +1,26 @@
+# gitleaks configuration — extends the default ruleset and allowlists the
+# obviously-fake Stripe placeholders used in API test fixtures.
+#
+# `sk_test_placeholder` / `whsec_test_placeholder` are NOT real secrets: they only
+# satisfy the Stripe SDK constructor and the pure-HMAC webhook-signature test
+# (Stripe.webhooks.generateTestHeaderString). No Stripe API call is ever made with
+# them, and real keys are supplied via environment variables at runtime.
+
+title = "Provenant gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake Stripe placeholders in API test fixtures (not real secrets)"
+# Scope: the two test files that hold the placeholders.
+paths = [
+  '''apps/api/test/setup-env\.ts''',
+  '''apps/api/test/api\.spec\.ts''',
+]
+# Belt-and-suspenders: match the exact fake values so only these are ignored
+# (a real `sk_test_<random>` / `whsec_<random>` would not match and still be caught).
+regexes = [
+  '''sk_test_placeholder''',
+  '''whsec_test_placeholder''',
+]
