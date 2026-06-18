@@ -1,4 +1,4 @@
-# CLAUDE.md — AI Governance Platform (Aegis)
+# CLAUDE.md — AI Governance Platform (Provenant)
 
 Commercial, multi-tenant enterprise **AI governance SaaS**. A system of record for an
 organization's AI: discover use cases, classify risk (EU AI Act / NIST / ISO 42001),

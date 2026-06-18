@@ -66,7 +66,7 @@ try {
   } else {
     writeFileSync(
       file,
-      `# SESSION HANDOFF — Aegis (AI Governance)\n\n> Local continuity scratch (gitignored). Auto-snapshot below is refreshed on every compaction.\n\n${block}\n`,
+      `# SESSION HANDOFF — Provenant (AI Governance)\n\n> Local continuity scratch (gitignored). Auto-snapshot below is refreshed on every compaction.\n\n${block}\n`,
     );
   }
 } catch {

@@ -55,7 +55,7 @@ export class MembershipsService {
     });
     await this.ops.sendEmail(
       email,
-      'You have been invited to an Aegis governance workspace',
+      'You have been invited to a Provenant governance workspace',
       `<p>You were invited as <strong>${role}</strong>. Sign in at <a href="${env.WEB_URL}/login">${env.WEB_URL}/login</a> with this email address.</p>`,
     );
     return {

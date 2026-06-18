@@ -4,7 +4,7 @@
 > CEO/Eng/Security/Design hardening pass complete. Ready to scaffold M1.
 > **Date:** 2026-06-07 (hardened 2026-06-08)
 > **Type:** Commercial, enterprise multi-tenant SaaS
-> **Working title:** _Aegis_ (placeholder — see naming note below)
+> **Working title:** _Provenant_ (placeholder — see naming note below)
 
 This folder contains the comprehensive plan produced from a multi-lens planning
 pass (Product / Architecture / Security & Compliance / Go-to-Market), then a
@@ -96,7 +96,7 @@ assurance — the recurring-revenue core.
 
 ## Still owned by you (not code-blocking, but real)
 
-- **Brand name** — resolve the "Aegis" placeholder before public surfaces, domains,
+- **Brand name** — resolve the "Provenant" placeholder before public surfaces, domains,
   and trademark (the space is crowded; see naming note).
 - **Design partners** — line up 3–5 EU-exposed companies to co-build. Nothing
   de-risks this faster.
@@ -108,6 +108,6 @@ assurance — the recurring-revenue core.
 
 ## Naming note
 
-"Aegis" is a placeholder. Before committing, check trademark + domain; the space
+"Provenant" is a placeholder. Before committing, check trademark + domain; the space
 is crowded (Credo, Holistic, Saidot, Monitaur, Trustible, Fairly). Pick something
 that signals *trust + system of record*, not just "AI."

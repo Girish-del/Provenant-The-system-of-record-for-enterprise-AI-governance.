@@ -125,7 +125,7 @@ lightweight, low-friction UX, separate from the full platform:
 
 ## 9. Open design decisions
 
-- Brand name + identity (resolve the "Aegis" placeholder before visual identity work).
+- Brand name + identity (resolve the "Provenant" placeholder before visual identity work).
 - Exact primary hue + full token palette (do `/design-consultation` for the system,
   `/design-shotgun` to explore directions).
 - Dashboard data-viz approach (how much charting vs tables for the exec/board view).

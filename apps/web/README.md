@@ -1,6 +1,6 @@
 # @aegis/web
 
-The Aegis governance console — Next.js (App Router) + Tailwind v4, styled to `DESIGN.md`
+The Provenant governance console — Next.js (App Router) + Tailwind v4, styled to `DESIGN.md`
 (Lapis primary, Sand signature accent, Carmine = critical only; Fraunces display + Geist).
 Talks to the core API at `NEXT_PUBLIC_API_URL` (default `http://localhost:3001`) with
 cookie-based sessions (`credentials: 'include'`).

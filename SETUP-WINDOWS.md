@@ -1,4 +1,4 @@
-# Aegis — Windows Quick Setup
+# Provenant — Windows Quick Setup
 
 Step-by-step Windows (PowerShell) setup. Run every command from the repo root unless noted.
 
@@ -107,7 +107,7 @@ $env:INTERNAL_API_TOKEN   = 'dev-internal-token-please-rotate'
 node apps/api/dist/main.js
 ```
 
-Wait for: `Aegis API listening on :3001`.
+Wait for: `Provenant API listening on :3001`.
 
 ### Window 2 — AI service (port 8000)
 

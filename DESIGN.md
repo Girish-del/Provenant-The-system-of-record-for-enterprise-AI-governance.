@@ -1,4 +1,4 @@
-# Design System — AI Governance Platform (working title: Aegis)
+# Design System — AI Governance Platform (working title: Provenant)
 
 > Source of truth for all visual and UI decisions. Read this before writing any UI.
 > Derived from `docs/06-DESIGN-SYSTEM.md` and the user-selected palette

@@ -11,7 +11,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: 'Aegis — Enterprise AI Governance',
+  title: 'Provenant — Enterprise AI Governance',
   description:
     'The system of record for enterprise AI: discover use cases, classify risk, map controls, collect evidence, and prove compliance.',
 };

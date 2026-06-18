@@ -9,7 +9,7 @@ export function BrandMark({ size = 28 }: { size?: number }) {
         fontSize: size * 0.56,
       }}
     >
-      A
+      P
     </span>
   );
 }

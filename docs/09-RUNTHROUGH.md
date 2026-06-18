@@ -1,21 +1,21 @@
 # The Complete Run-Through
 
-> The founder's guide to Aegis: every flow, every screen, every moving part, and the
+> The founder's guide to Provenant: every flow, every screen, every moving part, and the
 > reasoning behind each one. Read this until you can demo the product cold and answer
 > "why does it work that way?" without looking anything up. All routes, endpoints, and
 > file paths below are real and current as of the M1-M17 + B1-B10 build.
 
 ---
 
-## 1. What Aegis is
+## 1. What Provenant is
 
-Aegis is a multi-tenant SaaS that acts as the system of record for an organization's
+Provenant is a multi-tenant SaaS that acts as the system of record for an organization's
 AI: every AI system gets registered, classified against the EU AI Act risk tiers,
 mapped to the controls its tier requires, backed with uploaded evidence, pushed through
 a human review-and-approval workflow, and exported as an audit-ready readiness report.
 The wedge is the EU AI Act high-risk deadline of 2 August 2026: companies must be able
 to prove what AI they run, how risky it is, and that the required obligations are met,
-and most of them today are doing this in spreadsheets. Aegis replaces the spreadsheet
+and most of them today are doing this in spreadsheets. Provenant replaces the spreadsheet
 with a governed workflow where every material change is captured in a tamper-evident
 audit log, AI assistance drafts the paperwork but never signs it, and the output is a
 document a regulator or auditor can actually read.
@@ -457,7 +457,7 @@ screenshot at build time, and live smoke tests (documented per component in
 
 ## 7. Glossary: the 15 terms to know cold
 
-| Term | Meaning in Aegis |
+| Term | Meaning in Provenant |
 |---|---|
 | **Governed AI system / use case** | The unit of governance and of billing: one registered AI system with a lifecycle, a risk tier, controls, evidence, and approvals. The `UseCase` model. |
 | **Risk tier** | The EU AI Act classification of a system: `PROHIBITED`, `HIGH`, `LIMITED`, or `MINIMAL` (plus `UNASSIGNED` before assessment). Determines which controls are required. |

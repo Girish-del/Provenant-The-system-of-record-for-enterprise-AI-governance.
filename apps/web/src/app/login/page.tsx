@@ -34,7 +34,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-2.5">
           <BrandMark />
           <span className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)' }}>
-            Aegis
+            Provenant
           </span>
         </div>
         <div>
@@ -62,7 +62,7 @@ export default function LoginPage() {
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
             <BrandMark />
             <span className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)' }}>
-              Aegis
+              Provenant
             </span>
           </div>
           <h2 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-serif)' }}>

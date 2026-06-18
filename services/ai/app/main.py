@@ -28,7 +28,7 @@ from .schemas import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("aegis.ai")
 
-app = FastAPI(title="Aegis AI Service", version="0.2.0")
+app = FastAPI(title="Provenant AI Service", version="0.2.0")
 _provider = get_provider()
 _controls = controls_from_env()
 

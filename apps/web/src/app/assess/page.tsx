@@ -94,7 +94,7 @@ export default function AssessPage() {
         <div className="flex items-center gap-2.5">
           <BrandMark />
           <span className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)' }}>
-            Aegis
+            Provenant
           </span>
         </div>
         <a href="/login" className="text-sm text-muted hover:text-ink">

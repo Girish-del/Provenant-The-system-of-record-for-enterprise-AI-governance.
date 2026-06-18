@@ -1,12 +1,12 @@
-# Aegis: Investor Pitch
+# Provenant: Investor Pitch
 
 > **Status:** Pre-seed pitch document. Audience: investors and sponsors reading cold.
-> "Aegis" is a working title; naming is an open item (see Asks).
+> "Provenant" is a working title; naming is an open item (see Asks).
 > Companion docs: `01-PRD.md` (product), `04-GTM-AND-RISKS.md` (market), `BUILD-LOG.md` (what is built).
 
 ## The hook
 
-Every enterprise will soon be asked to prove its AI is legal. Aegis is where the proof lives.
+Every enterprise will soon be asked to prove its AI is legal. Provenant is where the proof lives.
 
 ## The problem
 
@@ -22,7 +22,7 @@ The cost of getting this wrong is concrete: fines, blocked deployments, failed a
 
 ## The solution
 
-Aegis is a system of record for an organization's AI. One place that holds the inventory, the risk classification, the controls, the evidence, the approvals, and the export a regulator or auditor can read.
+Provenant is a system of record for an organization's AI. One place that holds the inventory, the risk classification, the controls, the evidence, the approvals, and the export a regulator or auditor can read.
 
 The golden path, in plain words:
 
@@ -96,7 +96,7 @@ The motion: land free via the `/assess` funnel or a free workspace, hit the 3-sy
 ## The moat
 
 - **Content as data.** The framework library (EU AI Act, NIST AI RMF, crosswalks, ISO 42001 next) is versioned data, updatable without a code deploy. Maintained, trusted regulatory crosswalks are slow to build and slow for competitors to copy, and they compound: every framework added multiplies the value of existing evidence.
-- **The audit trail is the switching cost.** Once approvals, evidence, and the hash-chained history live in Aegis, leaving means abandoning or laboriously exporting the very record the customer bought the product to keep. Systems of record do not churn.
+- **The audit trail is the switching cost.** Once approvals, evidence, and the hash-chained history live in Provenant, leaving means abandoning or laboriously exporting the very record the customer bought the product to keep. Systems of record do not churn.
 - **PLG data.** Every assessment teaches us what enterprises actually run and where they fail readiness, which sharpens the questionnaire, the content, and eventually the benchmark data nobody else has.
 
 ## Honest risks
@@ -112,6 +112,6 @@ The motion: land free via the `/assess` funnel or a free workspace, hit the 3-sy
 1. **3 to 5 design partners** with EU exposure, on paid pilots at founder pricing in exchange for co-building and a reference. A paid pilot is the demand signal; we will not give it away.
 2. **A compliance advisor**: a privacy or AI-risk lawyer, or an ex-regulator, on the advisory board before public launch.
 3. **Pre-seed capital** for roughly 12 months: first cloud deployment (EU region) and SOC 2 program, regulatory content depth (license or author the full framework texts), the first GTM hire, and converting test-key integrations to production.
-4. **A name.** "Aegis" is a placeholder in a crowded namespace; trademark and domain work is budgeted before any public surface.
+4. **A name.** "Provenant" is a placeholder in a crowded namespace; trademark and domain work is budgeted before any public surface.
 
 The deadline is 2 August 2026. The product that catches the wave it creates is built and tested. What it needs now is a deployment target, a partner list, and a name on the door.

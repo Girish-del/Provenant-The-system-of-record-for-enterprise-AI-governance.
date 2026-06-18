@@ -32,7 +32,7 @@ export function Sidebar() {
         <BrandMark />
         <div>
           <div className="text-lg font-semibold leading-none" style={{ fontFamily: 'var(--font-serif)' }}>
-            Aegis
+            Provenant
           </div>
           <div className="mt-1 text-[11px] text-faint">AI Governance</div>
         </div>

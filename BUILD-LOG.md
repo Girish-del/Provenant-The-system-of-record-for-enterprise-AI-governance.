@@ -1,4 +1,4 @@
-# BUILD-LOG — AI Governance Platform (Aegis)
+# BUILD-LOG — AI Governance Platform (Provenant)
 
 > **This file is the resume point.** If a session expires, read this top-to-bottom,
 > then `docs/` (plan) and `DESIGN.md` (visual system), and continue from "Next up".
@@ -271,7 +271,7 @@ fan-out, not the sequential cadence requested). Connect later for parallel M4–
    `stripe listen` webhook; WorkOS (Google SSO); ANTHROPIC_API_KEY (real Claude drafting);
    Sentry/PostHog/Resend; optional OTel collector + INTERNAL_API_TOKEN.
 2. **Deploy** — component 1.4 (Terraform/AWS-ECS per docs/02), domains, EU residency, backups.
-3. **Brand** — pick the real name (Aegis is a working title; prior shortlist: Provenant/Lodestar/Warrant).
+3. **Brand** — pick the real name (Provenant is a working title; prior shortlist: Provenant/Lodestar/Warrant).
 4. **Design partners** — line up 3–5 EU-exposed pilots + a compliance advisor (docs/04 plan).
 Docs: see docs/09 (run-through), docs/10 (pitch), docs/11 (setup), docs/12 (simple explainer).
 

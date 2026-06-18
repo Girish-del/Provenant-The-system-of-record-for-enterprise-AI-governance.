@@ -1,6 +1,6 @@
 # 11 - Setup: from fresh machine to verified stack
 
-Audience: a developer with a clean machine who needs the full Aegis stack running and
+Audience: a developer with a clean machine who needs the full Provenant stack running and
 verified locally. Every command is copy-pasteable on Windows (PowerShell unless marked
 Git Bash). macOS/Linux differences are called out inline. Nothing here requires a paid
 account: with zero API keys the platform boots with mock providers and no-op
@@ -284,7 +284,7 @@ Note: the AI service's production check reads `APP_ENV`, not `NODE_ENV`. Set
 | `POSTHOG_KEY` | Product analytics (`system_registered`, `approval_decided`, org-scoped, no PII) | No-op; `posthog=noop` |
 | `POSTHOG_HOST` | PostHog endpoint override | Defaults to `https://eu.posthog.com` |
 | `RESEND_API_KEY` | Transactional email | Emails are logged instead: `[email noop] to=... subject=...` |
-| `EMAIL_FROM` | Sender override | Defaults to `Aegis <noreply@aegis.dev>` |
+| `EMAIL_FROM` | Sender override | Defaults to `Provenant <noreply@aegis.dev>` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP HTTP collector (traces, auto-instrumented http/express/prisma), e.g. `http://localhost:4318` | No-op; boot prints `[otel] noop (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)` |
 | `REVIEW_SLA_DAYS` | Due-date window for review workflow steps (B6) | Defaults to `5` |
 
@@ -338,7 +338,7 @@ node apps/api/dist/main.js
 
 The S3 variables must be present **at boot** or evidence upload fails later with an
 opaque SDK error. Expected boot log: `[otel] noop ...`, `stripe=noop (mock checkout)`,
-`sentry=noop posthog=noop resend=noop`, then `Aegis API listening on :3001`.
+`sentry=noop posthog=noop resend=noop`, then `Provenant API listening on :3001`.
 
 Quick check: `curl http://localhost:3001/health` returns `{"status":"ok"}`-shaped
 output and an `x-request-id` response header.

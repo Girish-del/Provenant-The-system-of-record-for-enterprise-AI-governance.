@@ -161,7 +161,7 @@ merge: migrate (gated, reversible, backup step) → deploy staging → smoke
 
 ## 10. Decisions still owned by you (small, but real)
 
-- Brand name (resolve "Aegis" before public surfaces / domains / trademarks).
+- Brand name (resolve "Provenant" before public surfaces / domains / trademarks).
 - Test runner: Vitest (faster, modern) vs Jest (default for NestJS) — recommend
   Vitest for packages, keep Jest for Nest if friction is high.
 - Hosting specifics: ECS Fargate now vs Vercel for `web` + Fargate for `api`/`ai`

@@ -1,4 +1,4 @@
-# Aegis, Explained Simply
+# Provenant, Explained Simply
 
 > A rehearsal script for explaining the product to anyone, from a curious kid to a
 > skeptical sponsor. One analogy, carried all the way through. Every "for the
@@ -217,7 +217,7 @@ tamper-evident audit log, readiness reports, the public assessment funnel, billi
 with cap enforcement, and the AI drafting service, all passing an automated test
 suite in CI, including end-to-end runs and a dedicated tenant-isolation suite.
 What does not exist yet: a cloud deployment, real Stripe and SSO keys (test
-placeholders are wired), a final brand name (Aegis is a working title), and
+placeholders are wired), a final brand name (Provenant is a working title), and
 customers. The next milestones are deployment, three to five design partners, and
 the first paid pilot. We are pre-revenue with the hard part already built.
 
