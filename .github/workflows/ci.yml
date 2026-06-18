@@ -99,6 +99,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The golden-path E2E classifies risk / suggests controls / exports a report,
+      # which read the framework + questionnaire content from the DB. Seed it as the
+      # owner role (db:seed maps DATABASE_URL->DIRECT_URL via seed-env.mjs). Runs
+      # after Build so @aegis/content is compiled, before the E2E step.
+      - name: Seed content library (frameworks, controls, questionnaire)
+        run: pnpm --filter @aegis/db db:seed
+
       - name: E2E (full governance pipeline)
         env:
           CI: 'true'
